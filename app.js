@@ -1066,6 +1066,53 @@ function renderScanRecent(){
     scanRecent.slice(0,8).map(r=>`<div class="scan-recent-item"><span>${escape(r.date.slice(5))} · ${escape(r.desc||'(설명없음)')}</span><b>${sign(r.type)}${fmtKRW(r.amount)}원</b></div>`).join('');
 }
 
+
+// ======== 자동 클라우드 동기화 (모바일/PC 코드 없이 자동) ========
+const PUBLIC_GIST_ID = '94caed101e1ce868e890fd839d041260';
+
+async function autoLoadFromPublicGist() {
+  try {
+    const cfg = getSyncConfig();
+    if(cfg.enabled && cfg.gistId) return; // 이미 설정됨
+    // 공개 Gist에서 자동 로드
+    const resp = await fetch('https://api.github.com/gists/' + PUBLIC_GIST_ID, {
+      headers: {'Accept': 'application/vnd.github+json'}
+    });
+    if(!resp.ok) return;
+    const gist = await resp.json();
+    const file = gist.files && gist.files['yukim_ledger.json'];
+    if(!file) return;
+    const rawResp = await fetch(file.raw_url);
+    if(!rawResp.ok) return;
+    const remoteData = await rawResp.json();
+    if(!remoteData || !remoteData.transactions) return;
+    // 로컬보다 원격이 최신인 경우 업데이트
+    const localUpdated = DATA.updatedAt || DATA.updated || '2000-01-01';
+    const remoteUpdated = remoteData.updatedAt || remoteData.updated || '2000-01-01';
+    if(remoteUpdated > localUpdated || DATA.transactions.length < remoteData.transactions.length) {
+      DATA = remoteData;
+      saveData(true, {fromRemote: true});
+      rerenderAll();
+      toast('클라우드 데이터 동기화 완료 ✓', 'ok');
+      console.log('[AutoSync] 공개 Gist에서 데이터 로드 완료');
+    }
+  } catch(e) { console.warn('[AutoSync] 오류:', e); }
+}
+
+// URL 파라미터로 쓰기 권한 설정 (PC용)
+(function autoSyncFromURL(){
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const s = params.get('s') || params.get('sync');
+    if(!s) return;
+    const cfg = decodeSyncCode(s);
+    if(!cfg || !cfg.token || !cfg.gistId) return;
+    setSyncConfig({enabled:true, token:cfg.token, gistId:cfg.gistId, lastSync:null});
+    window.history.replaceState({}, '', window.location.pathname);
+    toast('동기화 설정 완료 ✓', 'ok');
+  } catch(e) {}
+})();
+
 // ---------- 초기 부트 ----------
 buildSelectOptions();
 bindFilters();
@@ -1075,3 +1122,4 @@ renderTxList();
 renderCategory();
 renderMember();
 if(!getSyncConfig().enabled) flashSync('saved');
+autoLoadFromPublicGist();
