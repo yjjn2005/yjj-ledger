@@ -531,543 +531,6 @@ document.getElementById('btnReset').addEventListener('click', ()=>{
   toast('초기 데이터로 복원되었습니다', 'ok');
 });
 
-// ============ GitHub Gist 자동 동기화 ============
-function getSyncConfig(){
-  try{return JSON.parse(localStorage.getItem(SYNC_KEY) || '{}')}catch{return {}}
-}
-function setSyncConfig(c){localStorage.setItem(SYNC_KEY, JSON.stringify(c))}
-
-function encodeSyncCode(token, gistId){
-  const raw = token + ':' + gistId;
-  return 'ledgerSync:' + btoa(unescape(encodeURIComponent(raw)));
-}
-function decodeSyncCode(code){
-  if(!code) return null;
-  const m = String(code).trim().match(/^(?:ledgerSync|dkbiSync):(.+)$/);
-  if(!m) return null;
-  try{
-    const raw = decodeURIComponent(escape(atob(m[1])));
-    const i = raw.indexOf(':');
-    if(i<0) return null;
-    return {token: raw.slice(0,i), gistId: raw.slice(i+1)};
-  }catch{return null}
-}
-
-async function ghFetch(url, opts, token){
-  opts = opts || {};
-  opts.headers = Object.assign({'Accept':'application/vnd.github+json','Authorization':'token '+token}, opts.headers||{});
-  const res = await fetch(url, opts);
-  if(!res.ok){
-    let msg = res.status + ' ' + res.statusText;
-    try{const j = await res.json(); if(j.message) msg += ' — ' + j.message}catch{}
-    throw new Error(msg);
-  }
-  return res.json();
-}
-async function createGist(token, data){
-  return ghFetch('https://api.github.com/gists', {
-    method:'POST',
-    body: JSON.stringify({
-      description:'유앤김 패밀리 가계부 자동 동기화 (private)',
-      public:false,
-      files:{[GIST_FILENAME]:{content: JSON.stringify(data, null, 2)}}
-    })
-  }, token);
-}
-async function readGist(token, gistId){
-  const j = await ghFetch('https://api.github.com/gists/'+encodeURIComponent(gistId), {}, token);
-  const file = j.files && j.files[GIST_FILENAME];
-  if(!file) throw new Error('Gist에서 데이터 파일을 찾을 수 없습니다');
-  let content = file.content;
-  if(file.truncated && file.raw_url){
-    const r = await fetch(file.raw_url);
-    content = await r.text();
-  }
-  return JSON.parse(content);
-}
-async function updateGist(token, gistId, data){
-  return ghFetch('https://api.github.com/gists/'+encodeURIComponent(gistId), {
-    method:'PATCH',
-    body: JSON.stringify({files:{[GIST_FILENAME]:{content: JSON.stringify(data, null, 2)}}})
-  }, token);
-}
-
-function setSyncBadge(state){
-  const badge = document.getElementById('syncStateBadge');
-  if(!badge) return;
-  badge.classList.remove('off','on','syncing');
-  if(state==='on'){badge.classList.add('on');badge.textContent='ON'}
-  else if(state==='syncing'){badge.classList.add('syncing');badge.textContent='SYNCING'}
-  else{badge.classList.add('off');badge.textContent='OFF'}
-}
-function setSyncStatusText(s){const el=document.getElementById('syncStatusText');if(el) el.textContent=s}
-function setSyncLastTime(d){
-  const el = document.getElementById('syncLastTime');
-  if(!el) return;
-  if(!d){el.textContent='-';return}
-  const diff = Date.now() - new Date(d).getTime();
-  if(diff<10000) el.textContent='방금 전';
-  else if(diff<60000) el.textContent=Math.floor(diff/1000)+'초 전';
-  else if(diff<3600000) el.textContent=Math.floor(diff/60000)+'분 전';
-  else el.textContent=new Date(d).toLocaleString('ko-KR');
-}
-function refreshSyncUI(){
-  const cfg = getSyncConfig();
-  const s1 = document.getElementById('syncStep1');
-  const s2 = document.getElementById('syncStep2');
-  if(cfg.enabled && cfg.token && cfg.gistId){
-    s1.style.display='none'; s2.style.display='block';
-    document.getElementById('syncGistId').textContent = cfg.gistId.slice(0,8)+'...'+cfg.gistId.slice(-4);
-    document.getElementById('syncCodeOut').value = encodeSyncCode(cfg.token, cfg.gistId);
-    setSyncBadge('on'); setSyncLastTime(cfg.lastSync); flashSync('cloud');
-  } else {
-    s1.style.display='block'; s2.style.display='none';
-    setSyncBadge('off');
-  }
-}
-
-let pushTimer=null, pushInflight=false;
-function schedulePush(){
-  setSyncBadge('syncing'); setSyncStatusText('업로드 대기 중…');
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(doPush, PUSH_DEBOUNCE_MS);
-}
-async function doPush(){
-  const cfg = getSyncConfig();
-  if(!cfg.enabled || !cfg.token || !cfg.gistId) return;
-  if(pushInflight){schedulePush(); return}
-  pushInflight = true;
-  try{
-    setSyncBadge('syncing'); setSyncStatusText('클라우드에 업로드 중…'); flashSync('syncing');
-    await updateGist(cfg.token, cfg.gistId, DATA);
-    cfg.lastSync = new Date().toISOString();
-    setSyncConfig(cfg);
-    setSyncBadge('on'); setSyncStatusText('연결됨'); setSyncLastTime(cfg.lastSync); flashSync('cloud');
-  }catch(e){
-    setSyncBadge('on'); setSyncStatusText('업로드 실패: '+e.message);
-    toast('동기화 업로드 실패: '+e.message, 'err');
-  }finally{pushInflight = false}
-}
-let pullTimer=null, pullInflight=false;
-async function doPull(silent){
-  const cfg = getSyncConfig();
-  if(!cfg.enabled || !cfg.token || !cfg.gistId) return;
-  if(pullInflight) return;
-  pullInflight = true;
-  try{
-    if(!silent){setSyncBadge('syncing'); setSyncStatusText('서버에서 확인 중…'); flashSync('syncing')}
-    const remote = await readGist(cfg.token, cfg.gistId);
-    if(remote && remote.updatedAt && remote.updatedAt > (DATA.updatedAt||'')){
-      DATA = remote;
-      saveData(true, {fromRemote:true});
-      rerenderAll();
-      if(!silent) toast('다른 기기 변경사항을 가져왔습니다', 'ok');
-    }
-    cfg.lastSync = new Date().toISOString();
-    setSyncConfig(cfg);
-    setSyncBadge('on'); setSyncStatusText('연결됨'); setSyncLastTime(cfg.lastSync); flashSync('cloud');
-  }catch(e){
-    setSyncBadge('on'); setSyncStatusText('확인 실패: '+e.message);
-    if(!silent) toast('동기화 확인 실패: '+e.message, 'err');
-  }finally{pullInflight = false}
-}
-function startPullLoop(){clearInterval(pullTimer); pullTimer = setInterval(()=>doPull(true), PULL_INTERVAL_MS)}
-function stopPullLoop(){clearInterval(pullTimer); pullTimer = null}
-
-window.addEventListener('focus', ()=>{
-  const cfg = getSyncConfig();
-  if(cfg.enabled) doPull(true);
-});
-window.addEventListener('beforeunload', ()=>{
-  if(pushTimer){
-    const cfg = getSyncConfig();
-    if(cfg.enabled && cfg.token && cfg.gistId){
-      try{
-        const xhr = new XMLHttpRequest();
-        xhr.open('PATCH', 'https://api.github.com/gists/'+encodeURIComponent(cfg.gistId), false);
-        xhr.setRequestHeader('Authorization','token '+cfg.token);
-        xhr.setRequestHeader('Accept','application/vnd.github+json');
-        xhr.send(JSON.stringify({files:{[GIST_FILENAME]:{content: JSON.stringify(DATA)}}}));
-      }catch{}
-    }
-  }
-});
-
-document.getElementById('btnSyncStart').addEventListener('click', async ()=>{
-  const t = document.getElementById('ghToken').value.trim();
-  const c = document.getElementById('ghSyncCode').value.trim();
-  const btn = document.getElementById('btnSyncStart');
-  btn.disabled = true; btn.textContent = '연결 중…';
-  try{
-    let token, gistId;
-    if(c){
-      const dec = decodeSyncCode(c);
-      if(!dec) throw new Error('동기화 코드 형식이 올바르지 않습니다');
-      token = dec.token; gistId = dec.gistId;
-      const remote = await readGist(token, gistId);
-      if(remote && remote.updatedAt && remote.updatedAt > (DATA.updatedAt||'')){
-        DATA = remote;
-        saveData(true, {fromRemote:true});
-        rerenderAll();
-      }
-    } else if(t){
-      if(!/^gh[ps]_/.test(t) && !/^github_pat_/.test(t)){
-        if(!confirm('토큰 형식이 일반적이지 않습니다. 계속할까요?')){btn.disabled=false; btn.textContent='☁️ 동기화 시작'; return}
-      }
-      token = t;
-      const g = await createGist(token, DATA);
-      gistId = g.id;
-    } else {
-      throw new Error('토큰 또는 동기화 코드를 입력하세요');
-    }
-    setSyncConfig({enabled:true, token, gistId, lastSync: new Date().toISOString()});
-    refreshSyncUI();
-    startPullLoop();
-    toast('자동 동기화 시작됨', 'ok');
-    document.getElementById('ghToken').value = '';
-    document.getElementById('ghSyncCode').value = '';
-  }catch(e){
-    toast('동기화 시작 실패: '+e.message, 'err');
-  }finally{btn.disabled = false; btn.textContent = '☁️ 동기화 시작'}
-});
-document.getElementById('btnSyncStop').addEventListener('click', ()=>{
-  if(!confirm('자동 동기화를 끄시겠습니까?')) return;
-  setSyncConfig({});
-  stopPullLoop();
-  clearTimeout(pushTimer);
-  refreshSyncUI();
-  flashSync('saved');
-  toast('동기화 꺼짐');
-});
-document.getElementById('btnSyncNow').addEventListener('click', async ()=>{await doPush(); await doPull()});
-document.getElementById('btnCopyCode').addEventListener('click', async ()=>{
-  const code = document.getElementById('syncCodeOut').value;
-  try{
-    await navigator.clipboard.writeText(code);
-    toast('동기화 코드 복사 완료 — 다른 기기에 붙여넣으세요', 'ok');
-  }catch{
-    document.getElementById('syncCodeOut').select();
-    document.execCommand('copy');
-    toast('동기화 코드 복사 완료', 'ok');
-  }
-});
-
-(function bootSync(){
-  const cfg = getSyncConfig();
-  refreshSyncUI();
-  if(cfg.enabled && cfg.token && cfg.gistId){
-    doPull(true);
-    startPullLoop();
-  }
-  setInterval(()=>{
-    const c = getSyncConfig();
-    if(c.enabled && c.lastSync) setSyncLastTime(c.lastSync);
-  }, 5000);
-})();
-
-// ============ 입력·업로드 페이지 ============
-
-// 수동 입력 카드 클릭 → 기존 모달
-document.getElementById('imManual').addEventListener('click', ()=>openEditModal(null));
-document.getElementById('imExcel').addEventListener('click', ()=>document.getElementById('excelFile').click());
-document.getElementById('imScan').addEventListener('click', ()=>document.getElementById('scanFile').click());
-
-// ---------- 엑셀 업로드 ----------
-let excelRows = [];     // 원본 행
-let excelHeaders = [];  // 컬럼명 배열
-let excelMapping = {};  // {date: '날짜', amount: '금액', ...}
-let excelDefaults = {}; // {type:'지출', user:'유재진', method:'...', cat:'...'}
-
-const FIELD_KEYS = [
-  {k:'date', label:'날짜', hints:['날짜','date','일자','거래일','일시']},
-  {k:'amount', label:'금액', hints:['금액','amount','거래금액','이용금액','출금액','입금액','입금','출금']},
-  {k:'desc', label:'설명/적요', hints:['내용','적요','설명','desc','description','거래내용','가맹점','상호','place']},
-  {k:'memo', label:'메모', hints:['메모','memo','note','비고']},
-  {k:'type', label:'유형 (수입/지출/이체)', hints:['유형','type','구분']},
-  {k:'cat', label:'카테고리', hints:['카테고리','cat','category','분류','용도']},
-  {k:'method', label:'결제수단', hints:['결제수단','method','수단','계좌','카드']},
-  {k:'user', label:'구성원', hints:['구성원','user','이름','회원']}
-];
-
-function detectMapping(headers){
-  const m = {};
-  FIELD_KEYS.forEach(f=>{
-    for(const h of headers){
-      const hLower = String(h).toLowerCase();
-      if(f.hints.some(hint=>hLower.includes(hint.toLowerCase()))){
-        m[f.k] = h; break;
-      }
-    }
-  });
-  return m;
-}
-
-document.getElementById('excelFile').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    try{
-      const data = new Uint8Array(ev.target.result);
-      const wb = XLSX.read(data, {type:'array', cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      // header row → object array
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false});
-      if(!rows.length){ toast('엑셀에 데이터가 없습니다', 'err'); return; }
-      excelRows = rows;
-      excelHeaders = Object.keys(rows[0]);
-      excelMapping = detectMapping(excelHeaders);
-      excelDefaults = {type:'지출', user:DATA.meta.users[0], method:DATA.meta.methods[0], cat:DATA.meta.categories[0]};
-      renderExcelPreview();
-      document.getElementById('excelPreviewSection').style.display = 'block';
-      document.getElementById('excelPreviewSection').scrollIntoView({behavior:'smooth'});
-      toast(`${rows.length}개 행을 읽었습니다 — 컬럼을 확인하세요`, 'ok');
-    }catch(err){
-      toast('엑셀 읽기 실패: ' + err.message, 'err');
-    }
-  };
-  reader.readAsArrayBuffer(file);
-  e.target.value = '';
-});
-
-function renderExcelPreview(){
-  document.getElementById('excelRowCount').textContent = `${excelRows.length}건`;
-
-  // 컬럼 매핑 UI
-  const mappingHTML = '<div class="excel-mapping">' + FIELD_KEYS.map(f=>`
-    <div>
-      <label>${escape(f.label)}</label>
-      <select data-map-field="${f.k}">
-        <option value="">— 사용 안 함 —</option>
-        ${excelHeaders.map(h=>`<option value="${escape(h)}" ${excelMapping[f.k]===h?'selected':''}>${escape(h)}</option>`).join('')}
-      </select>
-    </div>
-  `).join('') + '</div>';
-  document.getElementById('excelMappingArea').innerHTML = mappingHTML;
-  document.getElementById('excelMappingArea').querySelectorAll('[data-map-field]').forEach(s=>{
-    s.addEventListener('change', e=>{
-      excelMapping[e.target.dataset.mapField] = e.target.value;
-      renderExcelTable();
-    });
-  });
-
-  // 기본값 (매핑되지 않은 항목에 적용)
-  document.getElementById('excelDefaultsArea').innerHTML = `
-    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:10px">기본값 — 매핑되지 않은 항목에 자동 적용</div>
-    <div class="excel-defaults">
-      <div><label>유형</label><select data-def="type">
-        <option value="지출">지출</option><option value="수입">수입</option><option value="이체">이체</option>
-      </select></div>
-      <div><label>구성원</label><select data-def="user">${DATA.meta.users.map(u=>`<option value="${u}">${escape(u)}</option>`).join('')}</select></div>
-      <div><label>카테고리</label><select data-def="cat">${DATA.meta.categories.map(c=>`<option value="${c}">${escape(c)}</option>`).join('')}</select></div>
-      <div><label>결제수단</label><select data-def="method">${DATA.meta.methods.map(m=>`<option value="${m}">${escape(m)}</option>`).join('')}</select></div>
-    </div>`;
-  document.querySelectorAll('[data-def]').forEach(s=>{
-    s.value = excelDefaults[s.dataset.def] || '';
-    s.addEventListener('change', e=>{
-      excelDefaults[e.target.dataset.def] = e.target.value;
-      renderExcelTable();
-    });
-  });
-
-  renderExcelTable();
-}
-
-function parseExcelAmount(v){
-  if(v==null) return 0;
-  if(typeof v === 'number') return Math.abs(Math.round(v));
-  const s = String(v).replace(/[^\d.-]/g,'');
-  return Math.abs(Math.round(parseFloat(s) || 0));
-}
-
-function parseExcelDate(v){
-  if(!v) return '';
-  if(v instanceof Date){
-    return v.getFullYear() + '-' + String(v.getMonth()+1).padStart(2,'0') + '-' + String(v.getDate()).padStart(2,'0');
-  }
-  const s = String(v).trim();
-  // common formats: 2026-01-01, 2026/01/01, 26.01.01, 01/01/2026
-  let m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
-  if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
-  m = s.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
-  if(m) return `${m[3]}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
-  m = s.match(/^(\d{2})[-./](\d{1,2})[-./](\d{1,2})/);
-  if(m) return `20${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
-  return s;
-}
-
-function rowToTx(row){
-  const get = k=> excelMapping[k] ? row[excelMapping[k]] : null;
-  const t = {
-    date: parseExcelDate(get('date')),
-    amount: parseExcelAmount(get('amount')),
-    type: String(get('type')||excelDefaults.type||'지출').trim(),
-    user: String(get('user')||excelDefaults.user||DATA.meta.users[0]).trim(),
-    cat: String(get('cat')||excelDefaults.cat||'기타').trim(),
-    method: String(get('method')||excelDefaults.method||'기타').trim(),
-    desc: String(get('desc')||'').trim(),
-    memo: String(get('memo')||'').trim()
-  };
-  // type 정규화
-  if(t.type && !['수입','지출','이체'].includes(t.type)){
-    if(/입금|수입|급여|이자|배당/.test(t.type)) t.type = '수입';
-    else if(/이체|trans|transfer/i.test(t.type)) t.type = '이체';
-    else t.type = '지출';
-  }
-  return t;
-}
-
-function renderExcelTable(){
-  const preview = excelRows.slice(0, 30).map(rowToTx);
-  const hasMore = excelRows.length > 30;
-  const valid = preview.filter(t=>t.date && t.amount>0).length;
-  const total = preview.length;
-
-  const html = `
-    <div style="font-size:13px;color:var(--text-muted);margin:10px 0">미리보기 첫 ${total}건 (전체 ${excelRows.length}건) · 날짜·금액이 인식된 행: <b style="color:var(--inc)">${valid}건</b> / 비어있는 행: <b style="color:var(--exp)">${total-valid}건</b></div>
-    <div class="excel-preview-wrap">
-      <table class="excel-preview-table">
-        <thead><tr><th>#</th><th>날짜</th><th>유형</th><th>금액</th><th>설명</th><th>카테고리</th><th>구성원</th><th>결제수단</th></tr></thead>
-        <tbody>${preview.map((t,i)=>{
-          const skip = !t.date || !t.amount;
-          return `<tr class="${skip?'skip':''}">
-            <td>${i+1}</td>
-            <td>${escape(t.date||'-')}</td>
-            <td>${escape(t.type)}</td>
-            <td style="text-align:right;font-weight:600">${t.amount?fmtKRW(t.amount):'-'}</td>
-            <td>${escape(t.desc)}</td>
-            <td>${escape(t.cat)}</td>
-            <td>${escape(t.user)}</td>
-            <td>${escape(t.method)}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>
-    ${hasMore?`<div style="font-size:12px;color:var(--text-muted);margin-top:8px;text-align:center">...외 ${excelRows.length-30}건 더</div>`:''}
-  `;
-  document.getElementById('excelPreviewArea').innerHTML = html;
-}
-
-document.getElementById('btnExcelAdd').addEventListener('click', ()=>{
-  const all = excelRows.map(rowToTx).filter(t=>t.date && t.amount>0);
-  if(!all.length){ toast('유효한 거래가 없습니다 (날짜와 금액 필수)', 'err'); return; }
-  if(!confirm(`${all.length}건의 거래를 추가합니다. 계속할까요?`)) return;
-  let nextId = DATA.nextId || (Math.max(0, ...DATA.transactions.map(x=>x.id||0)) + 1);
-  all.forEach(t=>{ t.id = nextId++; DATA.transactions.push(t); });
-  DATA.nextId = nextId;
-  flashSync('dirty');
-  saveData();
-  rerenderAll();
-  document.getElementById('excelPreviewSection').style.display = 'none';
-  toast(`${all.length}건 추가 완료`, 'ok');
-  showView('txlist');
-});
-document.getElementById('btnExcelCancel').addEventListener('click', ()=>{
-  document.getElementById('excelPreviewSection').style.display = 'none';
-  excelRows = []; excelHeaders = []; excelMapping = {}; excelDefaults = {};
-});
-
-// ---------- 스캔 이미지 ----------
-let scanRotation = 0;
-let scanZoom = 1;
-let scanType = '지출';
-let scanRecent = [];
-
-document.getElementById('scanFile').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    document.getElementById('scanImg').src = ev.target.result;
-    document.getElementById('scanSection').style.display = 'block';
-    initScanForm();
-    document.getElementById('scanSection').scrollIntoView({behavior:'smooth'});
-  };
-  reader.readAsDataURL(file);
-  e.target.value = '';
-});
-document.getElementById('btnScanClose').addEventListener('click', ()=>{
-  document.getElementById('scanSection').style.display = 'none';
-  scanRecent = [];
-});
-document.getElementById('btnScanReplace').addEventListener('click', ()=>document.getElementById('scanFile').click());
-document.getElementById('scanRotate').addEventListener('click', ()=>{
-  scanRotation = (scanRotation + 90) % 360;
-  const img = document.getElementById('scanImg');
-  img.classList.remove('rotated-90','rotated-180','rotated-270');
-  if(scanRotation) img.classList.add('rotated-'+scanRotation);
-});
-document.getElementById('scanZoomIn').addEventListener('click', ()=>{
-  scanZoom = Math.min(3, scanZoom + 0.2);
-  document.getElementById('scanImg').style.transform = `scale(${scanZoom})${scanRotation?` rotate(${scanRotation}deg)`:''}`;
-});
-document.getElementById('scanZoomOut').addEventListener('click', ()=>{
-  scanZoom = Math.max(0.5, scanZoom - 0.2);
-  document.getElementById('scanImg').style.transform = `scale(${scanZoom})${scanRotation?` rotate(${scanRotation}deg)`:''}`;
-});
-document.querySelectorAll('#scanTypePicker .type-btn').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    scanType = b.dataset.type;
-    document.querySelectorAll('#scanTypePicker .type-btn').forEach(x=>x.classList.toggle('active', x===b));
-  });
-});
-document.getElementById('sAmount').addEventListener('input', e=>{
-  const v = e.target.value.replace(/[^\d]/g,'');
-  e.target.value = v ? parseInt(v).toLocaleString() : '';
-});
-
-function initScanForm(){
-  document.getElementById('sDate').value = new Date().toISOString().slice(0,10);
-  document.getElementById('sAmount').value = '';
-  document.getElementById('sUser').innerHTML = DATA.meta.users.map(u=>`<option value="${u}">${escape(u)}</option>`).join('');
-  document.getElementById('sCat').innerHTML = DATA.meta.categories.map(c=>`<option value="${c}">${escape(c)}</option>`).join('');
-  document.getElementById('sMethod').innerHTML = DATA.meta.methods.map(m=>`<option value="${m}">${escape(m)}</option>`).join('');
-  document.getElementById('sDesc').value = '';
-  document.getElementById('sMemo').value = '';
-  scanType = '지출';
-  document.querySelectorAll('#scanTypePicker .type-btn').forEach(b=>b.classList.toggle('active', b.dataset.type==='지출'));
-  scanRecent = [];
-  renderScanRecent();
-}
-
-document.getElementById('btnScanAdd').addEventListener('click', ()=>{
-  const date = document.getElementById('sDate').value;
-  const amount = parseInt(document.getElementById('sAmount').value.replace(/[^\d]/g,'')) || 0;
-  if(!date){ toast('날짜를 입력하세요', 'err'); return; }
-  if(amount<=0){ toast('금액을 입력하세요', 'err'); return; }
-  const rec = {
-    id: DATA.nextId || (Math.max(0, ...DATA.transactions.map(x=>x.id||0)) + 1),
-    date, amount, type: scanType,
-    user: document.getElementById('sUser').value,
-    cat: document.getElementById('sCat').value,
-    method: document.getElementById('sMethod').value,
-    desc: document.getElementById('sDesc').value.trim(),
-    memo: document.getElementById('sMemo').value.trim()
-  };
-  DATA.nextId = rec.id + 1;
-  DATA.transactions.push(rec);
-  scanRecent.unshift(rec);
-  flashSync('dirty');
-  saveData();
-  rerenderAll();
-  // form 초기화 (날짜·구성원·결제수단은 유지)
-  document.getElementById('sAmount').value = '';
-  document.getElementById('sDesc').value = '';
-  document.getElementById('sMemo').value = '';
-  document.getElementById('sAmount').focus();
-  renderScanRecent();
-  toast('추가됨 — 다음 거래 입력하세요', 'ok');
-});
-
-function renderScanRecent(){
-  const cont = document.getElementById('scanRecentList');
-  if(!scanRecent.length){ cont.innerHTML=''; return; }
-  cont.innerHTML = `<div class="scan-recent-head">이 사진에서 추가한 거래 ${scanRecent.length}건</div>` +
-    scanRecent.slice(0,8).map(r=>`<div class="scan-recent-item"><span>${escape(r.date.slice(5))} · ${escape(r.desc||'(설명없음)')}</span><b>${sign(r.type)}${fmtKRW(r.amount)}원</b></div>`).join('');
-}
-
-
-// ======== 자동 클라우드 동기화 (모바일/PC 코드 없이 자동) ========
 const PUBLIC_GIST_ID = '94caed101e1ce868e890fd839d041260';
 
 async function autoLoadFromPublicGist() {
@@ -1113,6 +576,56 @@ async function autoLoadFromPublicGist() {
   } catch(e) {}
 })();
 
+
+// ===== 모바일 동기화 (공개 Gist 직접 로드) =====
+const PUBLIC_GIST_RAW = "https://gist.githubusercontent.com/yjjn2005/94caed101e1ce868e890fd839d041260/raw/yukim_ledger.json";
+
+async function mobileSyncFromGist() {
+  const btn = document.getElementById('mobileSyncBtn');
+  if(btn) { btn.disabled = true; btn.textContent = '동기화 중...'; }
+  try {
+    // 캐시 방지
+    const url = PUBLIC_GIST_RAW + '?t=' + Date.now();
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const remoteData = await resp.json();
+    if(!remoteData || !remoteData.transactions) throw new Error('데이터 없음');
+    const localCount = DATA.transactions.length;
+    const remoteCount = remoteData.transactions.length;
+    DATA = remoteData;
+    localStorage.setItem('yukim_ledger_v1', JSON.stringify(DATA));
+    rerenderAll();
+    toast(`✅ 동기화 완료! ${remoteCount}건 로드됨`, 'ok');
+    if(btn) { btn.textContent = `✅ ${remoteCount}건 동기화 완료`; }
+    setTimeout(() => { if(btn) { btn.disabled = false; btn.textContent = '📱 클라우드 동기화'; } }, 3000);
+  } catch(e) {
+    toast('동기화 실패: ' + e.message, 'err');
+    if(btn) { btn.disabled = false; btn.textContent = '📱 클라우드 동기화'; }
+    console.error('[MobileSync]', e);
+  }
+}
+
+// 페이지 로드 시 자동 동기화 (로컬 데이터가 없거나 오래된 경우)
+async function autoSyncOnLoad() {
+  try {
+    const url = PUBLIC_GIST_RAW + '?t=' + Date.now();
+    const resp = await fetch(url);
+    if(!resp.ok) return;
+    const remoteData = await resp.json();
+    if(!remoteData || !remoteData.transactions) return;
+    const localUpdated = DATA.updatedAt || DATA.updated || '2000-01-01';
+    const remoteUpdated = remoteData.updatedAt || remoteData.updated || '2000-01-01';
+    const remoteCount = remoteData.transactions.length;
+    const localCount = DATA.transactions.length;
+    if(remoteUpdated > localUpdated || remoteCount > localCount) {
+      DATA = remoteData;
+      localStorage.setItem('yukim_ledger_v1', JSON.stringify(DATA));
+      rerenderAll();
+      toast(`클라우드 동기화 완료 — ${remoteCount}건`, 'ok');
+    }
+  } catch(e) { /* 조용히 실패 */ }
+}
+
 // ---------- 초기 부트 ----------
 buildSelectOptions();
 bindFilters();
@@ -1122,4 +635,5 @@ renderTxList();
 renderCategory();
 renderMember();
 if(!getSyncConfig().enabled) flashSync('saved');
+setTimeout(autoSyncOnLoad, 500);
 autoLoadFromPublicGist();
