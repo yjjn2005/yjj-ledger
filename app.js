@@ -978,7 +978,11 @@ document.getElementById('scanFile').addEventListener('change', e=>{
   if(!file) return;
   const reader = new FileReader();
   reader.onload = (ev)=>{
-    document.getElementById('scanImg').src = ev.target.result;
+    scanRotation = 0; scanZoom = 1;
+    const img = document.getElementById('scanImg');
+    img.src = ev.target.result;
+    img.classList.remove('rotated-90','rotated-180','rotated-270');
+    img.style.transform = 'scale(1) rotate(0deg)';
     document.getElementById('scanSection').style.display = 'block';
     initScanForm();
     document.getElementById('scanSection').scrollIntoView({behavior:'smooth'});
@@ -991,19 +995,23 @@ document.getElementById('btnScanClose').addEventListener('click', ()=>{
   scanRecent = [];
 });
 document.getElementById('btnScanReplace').addEventListener('click', ()=>document.getElementById('scanFile').click());
-document.getElementById('scanRotate').addEventListener('click', ()=>{
-  scanRotation = (scanRotation + 90) % 360;
+function applyScanTransform(){
   const img = document.getElementById('scanImg');
   img.classList.remove('rotated-90','rotated-180','rotated-270');
-  if(scanRotation) img.classList.add('rotated-'+scanRotation);
+  img.style.transformOrigin = 'center center';
+  img.style.transform = `scale(${scanZoom}) rotate(${scanRotation}deg)`;
+}
+document.getElementById('scanRotate').addEventListener('click', ()=>{
+  scanRotation = (scanRotation + 90) % 360;
+  applyScanTransform();
 });
 document.getElementById('scanZoomIn').addEventListener('click', ()=>{
   scanZoom = Math.min(3, scanZoom + 0.2);
-  document.getElementById('scanImg').style.transform = `scale(${scanZoom})${scanRotation?` rotate(${scanRotation}deg)`:''}`;
+  applyScanTransform();
 });
 document.getElementById('scanZoomOut').addEventListener('click', ()=>{
   scanZoom = Math.max(0.5, scanZoom - 0.2);
-  document.getElementById('scanImg').style.transform = `scale(${scanZoom})${scanRotation?` rotate(${scanRotation}deg)`:''}`;
+  applyScanTransform();
 });
 document.querySelectorAll('#scanTypePicker .type-btn').forEach(b=>{
   b.addEventListener('click', ()=>{
