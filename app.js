@@ -765,6 +765,46 @@ document.getElementById('btnCopyCode').addEventListener('click', async ()=>{
   }, 5000);
 })();
 
+// ===== 다중 탭/기기 덮어쓰기 방지 안전장치 =====
+// 다른 탭이 localStorage를 변경하면 즉시 이 탭의 메모리에 반영 → 옛 데이터로 덮어쓰기 방지
+window.addEventListener('storage', function(e){
+  if(e.key===STORAGE_KEY && e.newValue){
+    try{
+      var p = JSON.parse(e.newValue);
+      if(p && p.transactions && (p.updatedAt||'') !== (DATA.updatedAt||'')){
+        DATA = p; rerenderAll();
+      }
+    }catch(_){}
+  }
+});
+// 화면이 다시 보이면: 로컬 최신본 재적재 + (동기화 시) 클라우드 최신본 확인
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState!=='visible') return;
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ var p = JSON.parse(raw); if(p && p.transactions && (p.updatedAt||'') > (DATA.updatedAt||'')){ DATA = p; rerenderAll(); } }
+  }catch(_){}
+  try{ var cfg = getSyncConfig(); if(cfg.enabled) doPull(true); }catch(_){}
+});
+// 저장 직전, 다른 탭이 더 최신이면 병합 대신 최신 반영(오래된 메모리로 밀어내기 방지)
+var __origSaveData = saveData;
+saveData = function(silent, opts){
+  opts = opts || {};
+  if(!opts.fromRemote){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var cur = JSON.parse(raw);
+        if(cur && cur.updatedAt && (cur.updatedAt > (DATA.updatedAt||'')) && (cur.transactions && cur.transactions.length > DATA.transactions.length)){
+          // 다른 탭이 더 많은/최신 데이터를 갖고 있으면 그걸 채택 후 이어서 진행
+          DATA = cur; rerenderAll();
+        }
+      }
+    }catch(_){}
+  }
+  return __origSaveData(silent, opts);
+};
+
 // ============ 입력·업로드 페이지 ============
 
 // 수동 입력 카드 클릭 → 기존 모달
