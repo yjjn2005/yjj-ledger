@@ -1,4 +1,4 @@
-/* 유앤김 패밀리 가계부 — 앱 로직
+﻿/* 유앤김 패밀리 가계부 — 앱 로직
    - localStorage 자동 저장
    - 거래 추가/수정/삭제 모달
    - 월/유형/구성원/카테고리/검색 필터
@@ -936,7 +936,87 @@ function analysisBalances(){
     setBalances(b); toast('월말 잔고 저장됨','ok'); analysisBalances();
   });
 }
-(function(){
+
+function analysisMember(){
+  var per={};
+  DATA.transactions.forEach(function(t){
+    if(t.type!=='지출') return;
+    var u=t.user||'(미상)';
+    per[u]=per[u]||{cnt:0,amt:0};
+    per[u].cnt++; per[u].amt+=t.amount;
+  });
+  var names=Object.keys(per).sort(function(a,b){return per[b].amt-per[a].amt;});
+  if(!names.length) return openAnalysis('👥 구성원별 지출 현황','<div class="empty">지출 내역이 없습니다</div>');
+  var tot=names.reduce(function(x,n){return x+per[n].amt;},0);
+  var h='<table class="an-table"><thead><tr><th>구성원</th><th class="num">건수</th><th class="num">지출액</th><th class="num">비율</th></tr></thead><tbody>';
+  names.forEach(function(n){
+    var pct=tot>0?Math.round(per[n].amt/tot*100):0;
+    h+='<tr><td>'+escape(n)+'</td><td class="num">'+per[n].cnt+'</td><td class="num">'+fmtKRW(per[n].amt)+'원</td><td class="num">'+pct+'%</td></tr>';
+  });
+  h+='</tbody><tfoot><tr><td>합계</td><td class="num">'+names.reduce(function(x,n){return x+per[n].cnt;},0)+'</td><td class="num tot">'+fmtKRW(tot)+'원</td><td class="num">100%</td></tr></tfoot></table>';
+  openAnalysis('👥 구성원별 지출 현황', h);
+}
+
+function analysisCategory(){
+  var per={};
+  DATA.transactions.forEach(function(t){
+    if(t.type!=='지출') return;
+    var c=t.cat||'(미분류)';
+    per[c]=per[c]||{cnt:0,amt:0};
+    per[c].cnt++; per[c].amt+=t.amount;
+  });
+  var names=Object.keys(per).sort(function(a,b){return per[b].amt-per[a].amt;});
+  if(!names.length) return openAnalysis('🏷 카테고리별 지출 분석','<div class="empty">지출 내역이 없습니다</div>');
+  var tot=names.reduce(function(x,n){return x+per[n].amt;},0);
+  var h='<table class="an-table"><thead><tr><th>카테고리</th><th class="num">건수</th><th class="num">지출액</th><th class="num">비율</th></tr></thead><tbody>';
+  names.forEach(function(n){
+    var pct=tot>0?Math.round(per[n].amt/tot*100):0;
+    h+='<tr><td>'+escape(n)+'</td><td class="num">'+per[n].cnt+'</td><td class="num">'+fmtKRW(per[n].amt)+'원</td><td class="num">'+pct+'%</td></tr>';
+  });
+  h+='</tbody><tfoot><tr><td>합계</td><td class="num">'+names.reduce(function(x,n){return x+per[n].cnt;},0)+'</td><td class="num tot">'+fmtKRW(tot)+'원</td><td class="num">100%</td></tr></tfoot></table>';
+  openAnalysis('🏷 카테고리별 지출 분석', h);
+}
+
+function analysisPayMethod(){
+  var per={};
+  DATA.transactions.forEach(function(t){
+    if(t.type!=='지출') return;
+    var m=t.method||'(미상)';
+    per[m]=per[m]||{cnt:0,amt:0};
+    per[m].cnt++; per[m].amt+=t.amount;
+  });
+  var names=Object.keys(per).sort(function(a,b){return per[b].amt-per[a].amt;});
+  if(!names.length) return openAnalysis('💵 결제수단별 현황','<div class="empty">지출 내역이 없습니다</div>');
+  var tot=names.reduce(function(x,n){return x+per[n].amt;},0);
+  var h='<table class="an-table"><thead><tr><th>결제수단</th><th class="num">건수</th><th class="num">지출액</th><th class="num">비율</th></tr></thead><tbody>';
+  names.forEach(function(n){
+    var pct=tot>0?Math.round(per[n].amt/tot*100):0;
+    h+='<tr><td>'+escape(n)+'</td><td class="num">'+per[n].cnt+'</td><td class="num">'+fmtKRW(per[n].amt)+'원</td><td class="num">'+pct+'%</td></tr>';
+  });
+  h+='</tbody><tfoot><tr><td>합계</td><td class="num">'+names.reduce(function(x,n){return x+per[n].cnt;},0)+'</td><td class="num tot">'+fmtKRW(tot)+'원</td><td class="num">100%</td></tr></tfoot></table>';
+  openAnalysis('💵 결제수단별 현황', h);
+}
+
+function analysisMonthlyNet(){
+  var per={};
+  DATA.transactions.forEach(function(t){
+    var m=(t.date||'').slice(0,7); if(!m) return;
+    per[m]=per[m]||{inc:0,exp:0};
+    if(t.type==='수입') per[m].inc+=t.amount;
+    else if(t.type==='지출') per[m].exp+=t.amount;
+  });
+  var months=Object.keys(per).sort();
+  if(!months.length) return openAnalysis('📊 월별 순익 추이','<div class="empty">거래 내역이 없습니다</div>');
+  var h='<table class="an-table"><thead><tr><th>월</th><th class="num">수입</th><th class="num">지출</th><th class="num">순익</th></tr></thead><tbody>';
+  var totInc=0,totExp=0;
+  months.forEach(function(m){
+    var p=per[m]; var net=p.inc-p.exp; totInc+=p.inc; totExp+=p.exp;
+    h+='<tr><td>'+m+'</td><td class="num pos">'+fmtKRW(p.inc)+'</td><td class="num neg">'+fmtKRW(p.exp)+'</td><td class="num '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'')+fmtKRW(net)+'</td></tr>';
+  });
+  var totNet=totInc-totExp;
+  h+='</tbody><tfoot><tr><td>합계</td><td class="num pos tot">'+fmtKRW(totInc)+'</td><td class="num neg tot">'+fmtKRW(totExp)+'</td><td class="num '+(totNet>=0?'pos':'neg')+' tot">'+(totNet>=0?'+':'')+fmtKRW(totNet)+'</td></tr></tfoot></table>';
+  openAnalysis('📊 월별 순익 추이', h);
+}(function(){
   function on(id,fn){ var e=document.getElementById(id); if(e) e.addEventListener('click',fn); }
   on('btnBalances',analysisBalances);
   on('navBalances',analysisBalances);
@@ -946,6 +1026,10 @@ function analysisBalances(){
   on('navGolf',analysisGolf);
   on('btnDividend',analysisDividend);
   on('btnGolf',analysisGolf);
+  on('btnMember',analysisMember);
+  on('btnCategory',analysisCategory);
+  on('btnPayMethod',analysisPayMethod);
+  on('btnMonthlyNet',analysisMonthlyNet);
   on('btnEditBalances',editBalancesModal);
   on('analysisClose',closeAnalysis);
   var m=document.getElementById('analysisModal');
