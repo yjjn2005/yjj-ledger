@@ -227,6 +227,24 @@ body{
 /* ── MODAL ── */
 .modal-bg{display:none;position:fixed;inset:0;z-index:100;background:rgba(20,40,73,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:18px;animation:fadeIn .2s}
 .modal-bg.active{display:flex}
+.bal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.bal-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.bal-acct{font-weight:700;color:var(--navy)}
+.bal-method{font-size:11.5px;color:var(--text-muted);margin:2px 0 8px}
+.bal-real{font-size:13px}.bal-real b{color:var(--navy)}
+.bal-net{font-size:12.5px;margin-top:4px}
+.bal-net.pos{color:#1a7f4b}.bal-net.neg{color:#c0392b}
+.analysis-btns{display:flex;gap:12px;flex-wrap:wrap}
+.analysis-btns .btn{flex:1;min-width:160px;padding:15px 16px}
+.an-table{width:100%;border-collapse:collapse;font-size:13px}
+.an-table th,.an-table td{padding:8px 10px;border-bottom:1px solid var(--border-soft);text-align:left;white-space:nowrap}
+.an-table thead th{background:var(--navy);color:var(--gold);font-size:11px}
+.an-table td.num,.an-table th.num{text-align:right}
+.an-table td.tot{font-weight:700;color:var(--navy)}
+.an-table tfoot td{font-weight:700;border-top:2px solid var(--border)}
+.an-sum,.an-note{margin-bottom:12px;font-size:13px;color:var(--text-muted)}
+.an-sum b{color:var(--navy);font-size:16px}
+.bal-input{padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right}
 .modal{background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:540px;max-height:90vh;overflow:auto;box-shadow:var(--shadow-lg);animation:slideUp .3s cubic-bezier(.2,.8,.2,1)}
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
 .modal-header{padding:22px 26px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;background:var(--surface);z-index:1}
@@ -380,7 +398,34 @@ input[type="file"]{display:none}
     <div class="section-head"><div><h2 class="section-title">지출 TOP 8 카테고리</h2><div class="section-desc">가장 많이 지출한 카테고리 순</div></div></div>
     <div class="panel"><div id="dashTopCats"></div></div>
   </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div><h2 class="section-title">통장별 잔고</h2><div class="section-desc">실잔액(수동 입력) · 기록 순증감(수입-지출)</div></div>
+      <button class="btn btn-ghost" id="btnEditBalances">실잔액 수정</button>
+    </div>
+    <div class="bal-grid" id="dashBalances"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">빠른 분석</h2><div class="section-desc">카드·배당·골프 현황</div></div></div>
+    <div class="analysis-btns">
+      <button class="btn btn-primary" id="btnCardSpend">💳 카드별 월 지출</button>
+      <button class="btn btn-primary" id="btnDividend">💰 인별 배당금 지급현황</button>
+      <button class="btn btn-primary" id="btnGolf">⛳ 골프 관련 비용</button>
+    </div>
+  </div>
 </section>
+
+<div class="modal-bg" id="analysisModal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div><div class="modal-title" id="analysisTitle"></div></div>
+      <button class="modal-close" id="analysisClose" aria-label="닫기">×</button>
+    </div>
+    <div class="modal-body" id="analysisBody"></div>
+  </div>
+</div>
 
 <!-- ===== MONTHLY ===== -->
 <section class="view" id="view-monthly">

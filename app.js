@@ -479,6 +479,7 @@ function rerenderAll(){
   renderTxList();
   renderCategory();
   renderMember();
+  try{ renderBalances(); }catch(_){}
 }
 
 // ---------- 필터 이벤트 ----------
@@ -804,6 +805,124 @@ saveData = function(silent, opts){
   }
   return __origSaveData(silent, opts);
 };
+
+// ===== 통장 잔고 & 빠른 분석 (대시보드) =====
+function defaultBalances(){
+  return {
+    '유재진|신한은행 개인(이체)':8647391,
+    '유재진|신한은행 사업자(이체)':37316302,
+    '김희연|신한은행 개인(이체)':68058866,
+    '현금|현금':0
+  };
+}
+function getBalances(){ if(!DATA.balances){ DATA.balances = defaultBalances(); } return DATA.balances; }
+function setBalances(b){ DATA.balances = b; saveData(true); }
+function isBankMethod(m){ m=m||''; return m.indexOf('은행')>=0 || m==='현금'; }
+function accountGroups(){
+  var g={};
+  DATA.transactions.forEach(function(t){
+    if(!isBankMethod(t.method)) return;
+    var key=(t.user||'-')+'|'+(t.method||'-');
+    if(!g[key]) g[key]={user:t.user||'-',method:t.method||'-',inc:0,exp:0,trf:0};
+    if(t.type==='수입') g[key].inc+=t.amount;
+    else if(t.type==='지출') g[key].exp+=t.amount;
+    else g[key].trf+=t.amount;
+  });
+  return g;
+}
+function renderBalances(){
+  var el=document.getElementById('dashBalances'); if(!el) return;
+  var g=accountGroups(); var bal=getBalances();
+  Object.keys(bal).forEach(function(k){ if(!g[k]){ var p=k.split('|'); g[k]={user:p[0],method:p[1],inc:0,exp:0,trf:0}; } });
+  var keys=Object.keys(g).sort();
+  el.innerHTML = keys.map(function(k){
+    var a=g[k]; var net=a.inc-a.exp; var real=bal[k];
+    return '<div class="bal-card">'
+      +'<div class="bal-acct">'+escape(a.user)+'</div>'
+      +'<div class="bal-method">'+escape(a.method)+'</div>'
+      +'<div class="bal-real">실잔액 <b>'+(real!=null?fmtKRW(real)+'원':'-')+'</b></div>'
+      +'<div class="bal-net '+(net>=0?'pos':'neg')+'">순증감 '+(net>=0?'+':'')+fmtKRW(net)+'원</div>'
+      +'</div>';
+  }).join('') || '<div class="empty">은행/현금 거래가 없습니다</div>';
+}
+function openAnalysis(title, html){
+  var t=document.getElementById('analysisTitle'), b=document.getElementById('analysisBody'), m=document.getElementById('analysisModal');
+  if(!m) return; t.textContent=title; b.innerHTML=html; m.classList.add('active');
+}
+function closeAnalysis(){ var m=document.getElementById('analysisModal'); if(m) m.classList.remove('active'); }
+function analysisCardSpend(){
+  var cards={};
+  DATA.transactions.forEach(function(t){
+    if(t.type!=='지출') return;
+    if(String(t.method||'').indexOf('카드')<0) return;
+    var m=(t.date||'').slice(0,7);
+    cards[t.method]=cards[t.method]||{_tot:0}; cards[t.method][m]=(cards[t.method][m]||0)+t.amount; cards[t.method]._tot+=t.amount;
+  });
+  var names=Object.keys(cards).sort();
+  if(!names.length) return openAnalysis('💳 카드별 월 지출 합계','<div class="empty">카드 지출 내역이 없습니다</div>');
+  var mset={}; names.forEach(function(n){Object.keys(cards[n]).forEach(function(m){if(m!=='_tot')mset[m]=1;});});
+  var mkeys=Object.keys(mset).sort();
+  var h='<table class="an-table"><thead><tr><th>카드</th>'+mkeys.map(function(m){return '<th class="num">'+m.slice(2)+'</th>';}).join('')+'<th class="num">합계</th></tr></thead><tbody>';
+  names.forEach(function(n){ h+='<tr><td>'+escape(n)+'</td>'+mkeys.map(function(m){return '<td class="num">'+(cards[n][m]?fmtKRW(cards[n][m]):'-')+'</td>';}).join('')+'<td class="num tot">'+fmtKRW(cards[n]._tot)+'</td></tr>'; });
+  var grand=names.reduce(function(x,n){return x+cards[n]._tot;},0);
+  h+='</tbody><tfoot><tr><td>전체</td>'+mkeys.map(function(m){var s=names.reduce(function(x,n){return x+(cards[n][m]||0);},0);return '<td class="num">'+fmtKRW(s)+'</td>';}).join('')+'<td class="num tot">'+fmtKRW(grand)+'</td></tr></tfoot></table>';
+  openAnalysis('💳 카드별 월 지출 합계', h);
+}
+function analysisDividend(){
+  var per={};
+  DATA.transactions.forEach(function(t){
+    var c=t.cat||'', d=t.desc||'';
+    if(!(c.indexOf('분배')>=0||c.indexOf('배당')>=0||d.indexOf('배당')>=0||d.indexOf('분배')>=0)) return;
+    var name=d.replace(/\d+\./,'').replace(/(배당금|배당|분배금|분배)/g,'').replace(/\(.*$/,'').trim();
+    if(!name) name=d||'(미상)';
+    per[name]=per[name]||{cnt:0,amt:0,dates:[]};
+    per[name].cnt++; per[name].amt+=t.amount; per[name].dates.push(t.date);
+  });
+  var names=Object.keys(per).sort(function(a,b){return per[b].amt-per[a].amt;});
+  if(!names.length) return openAnalysis('💰 인별 배당금 지급현황','<div class="empty">배당/분배 내역이 없습니다</div>');
+  var tot=names.reduce(function(x,n){return x+per[n].amt;},0);
+  var tc=names.reduce(function(x,n){return x+per[n].cnt;},0);
+  var h='<table class="an-table"><thead><tr><th>대상</th><th class="num">건수</th><th class="num">지급액</th><th>최근일</th></tr></thead><tbody>';
+  names.forEach(function(n){ var p=per[n]; h+='<tr><td>'+escape(n)+'</td><td class="num">'+p.cnt+'</td><td class="num">'+fmtKRW(p.amt)+'원</td><td>'+escape(p.dates.sort().slice(-1)[0]||'')+'</td></tr>'; });
+  h+='</tbody><tfoot><tr><td>합계</td><td class="num">'+tc+'</td><td class="num tot">'+fmtKRW(tot)+'원</td><td></td></tr></tfoot></table>';
+  openAnalysis('💰 인별 배당금 지급현황', h);
+}
+function analysisGolf(){
+  var rows=DATA.transactions.filter(function(t){ var s=(t.cat||'')+(t.desc||''); return s.indexOf('골프')>=0||s.indexOf('캐디')>=0; });
+  if(!rows.length) return openAnalysis('⛳ 골프 관련 비용','<div class="empty">골프 관련 내역이 없습니다</div>');
+  rows.sort(function(a,b){return (a.date<b.date)?-1:1;});
+  var tot=rows.reduce(function(x,t){return x+(t.type==='수입'?-t.amount:t.amount);},0);
+  var h='<div class="an-sum">골프 관련 총액 <b>'+fmtKRW(tot)+'원</b> · '+rows.length+'건</div>';
+  h+='<table class="an-table"><thead><tr><th>날짜</th><th>내용</th><th>구성원</th><th>결제</th><th class="num">금액</th></tr></thead><tbody>';
+  rows.forEach(function(t){ h+='<tr><td>'+escape(t.date)+'</td><td>'+escape(t.desc||'')+'</td><td>'+escape(t.user||'')+'</td><td>'+escape(t.method||'')+'</td><td class="num">'+fmtKRW(t.amount)+'</td></tr>'; });
+  h+='</tbody></table>';
+  openAnalysis('⛳ 골프 관련 비용', h);
+}
+function editBalancesModal(){
+  var g=accountGroups(); var bal=getBalances();
+  Object.keys(bal).forEach(function(k){ if(!g[k]){var p=k.split('|');g[k]={user:p[0],method:p[1]};} });
+  var keys=Object.keys(g).sort();
+  var h='<div class="an-note">각 통장의 현재 실제 잔액을 입력하세요. (기기 간 동기화됩니다)</div><table class="an-table"><thead><tr><th>통장</th><th class="num">실잔액(원)</th></tr></thead><tbody>';
+  keys.forEach(function(k){ h+='<tr><td>'+escape(g[k].user)+' · '+escape(g[k].method)+'</td><td class="num"><input type="number" class="bal-input" data-key="'+escape(k)+'" value="'+(bal[k]!=null?bal[k]:'')+'"></td></tr>'; });
+  h+='</tbody></table><div style="margin-top:14px;text-align:right"><button class="btn btn-primary" id="balSave">저장</button></div>';
+  openAnalysis('통장 실잔액 수정', h);
+  var sv=document.getElementById('balSave');
+  if(sv) sv.addEventListener('click', function(){
+    var b=getBalances();
+    document.querySelectorAll('.bal-input').forEach(function(inp){ var v=String(inp.value).trim(); if(v==='') delete b[inp.dataset.key]; else b[inp.dataset.key]=parseInt(v.replace(/[^\d-]/g,''))||0; });
+    setBalances(b); closeAnalysis(); renderBalances(); toast('실잔액 저장됨','ok');
+  });
+}
+(function(){
+  function on(id,fn){ var e=document.getElementById(id); if(e) e.addEventListener('click',fn); }
+  on('btnCardSpend',analysisCardSpend);
+  on('btnDividend',analysisDividend);
+  on('btnGolf',analysisGolf);
+  on('btnEditBalances',editBalancesModal);
+  on('analysisClose',closeAnalysis);
+  var m=document.getElementById('analysisModal');
+  if(m) m.addEventListener('click',function(e){ if(e.target===m) closeAnalysis(); });
+})();
 
 // ============ 입력·업로드 페이지 ============
 
