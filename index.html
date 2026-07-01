@@ -87,7 +87,7 @@ body{
 
 /* ── SECTION ── */
 .section{max-width:1280px;margin:0 auto;padding:26px 22px}
-.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px;flex-wrap:wrap}.btn-sm{padding:6px 14px;font-size:.82rem;border-radius:8px}
 .section-title{font-family:'Noto Serif KR';font-weight:700;font-size:clamp(20px,2.6vw,26px);color:var(--navy);letter-spacing:-.02em}
 .section-title .badge{display:inline-block;margin-left:10px;padding:3px 10px;border-radius:6px;background:var(--navy);color:var(--gold);font-family:'Pretendard';font-size:12px;font-weight:700;letter-spacing:.05em;vertical-align:middle}
 .section-desc{font-size:13px;color:var(--text-muted);margin-top:4px;font-weight:400}
@@ -399,17 +399,24 @@ input[type="file"]{display:none}
   </div>
 
   <div class="section">
-    <div class="section-head"><div><h2 class="section-title">빠른 분석</h2><div class="section-desc">카드·배당·골프·구성원·카테고리 현황</div></div></div>
-    <div class="analysis-btns">
-      <button class="btn btn-primary" id="btnBalances">🏦 통장별 월말 잔고</button>
-      <button class="btn btn-primary" id="btnCardSpend">💳 월별 카드 지출내역</button>
-      <button class="btn btn-primary" id="btnDividend">💰 인별 배당금 지급현황</button>
-      <button class="btn btn-primary" id="btnGolf">⛳ 골프 관련 비용</button>
-      <button class="btn btn-primary" id="btnMember">👥 구성원별 지출 현황</button>
-      <button class="btn btn-primary" id="btnCategory">🏷 카테고리별 지출 분석</button>
-      <button class="btn btn-primary" id="btnPayMethod">💵 결제수단별 현황</button>
-      <button class="btn btn-primary" id="btnMonthlyNet">📊 월별 순익 추이</button>
-    </div>
+    <div class="section-head"><div><h2 class="section-title">🏦 통장별 월말 잔고</h2></div>
+      <button class="btn btn-sm" id="btnEditBalances2">✏️ 잔고 수정</button></div>
+    <div class="panel" id="dashBalancesInline"><div class="empty">데이터 로딩 중…</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">💳 월별 카드 지출내역</h2></div></div>
+    <div class="panel" id="dashCardSpendInline"><div class="empty">데이터 로딩 중…</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">💰 인별 배당금 지급현황</h2></div></div>
+    <div class="panel" id="dashDividendInline"><div class="empty">데이터 로딩 중…</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">⛳ 골프 관련 비용</h2></div></div>
+    <div class="panel" id="dashGolfInline"><div class="empty">데이터 로딩 중…</div></div>
   </div>
 
   <div class="section">

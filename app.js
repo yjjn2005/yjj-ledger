@@ -197,6 +197,10 @@ function renderDash(){
       <div class="cat-amt">${fmtKRW(c.amount)}원<span class="cat-pct">(${totalPct}%)</span></div>
     </div>`;
   }).join('') || '<div class="empty">지출 데이터 없음</div>';
+  renderDashBalances();
+  renderDashCardSpend();
+  renderDashDividend();
+  renderDashGolf();
 }
 
 // ---------- 렌더: 월별 ----------
@@ -852,6 +856,77 @@ function renderBalances(){
       +'</div>';
   }).join('') || '<div class="empty">은행/현금 거래가 없습니다</div>';
 }
+// ========== 대시보드 인라인 렌더 ==========
+function renderDashBalances(){
+  var el=document.getElementById('dashBalancesInline'); if(!el) return;
+  var g=accountGroups(); var bal=getBalances();
+  Object.keys(bal).forEach(function(k){ if(!g[k]){var p=k.split('|');g[k]={user:p[0],method:p[1],inc:0,exp:0,trf:0};} });
+  var keys=Object.keys(g).sort();
+  if(!keys.length){el.innerHTML='<div class="empty">통장 데이터가 없습니다</div>';return;}
+  var h='<table class="an-table"><thead><tr><th>통장</th><th class="num">월말 잔고</th><th class="num">순증감</th></tr></thead><tbody>';
+  keys.forEach(function(k){ var a=g[k]; var net=a.inc-a.exp; var b=getBalances()[k];
+    h+='<tr><td>'+escape(a.user)+' · '+escape(a.method)+'</td><td class="num">'+(b!=null?fmtKRW(b)+'원':'<span style="color:#aaa">미입력</span>')+'</td><td class="num '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'')+fmtKRW(net)+'</td></tr>';
+  });
+  h+='</tbody></table><div style="margin-top:10px;text-align:right"><button class="btn btn-sm" id="btnEditBalancesInline">✏️ 잔고 직접 입력</button></div>';
+  el.innerHTML=h;
+  var eb=document.getElementById('btnEditBalancesInline');
+  if(eb) eb.addEventListener('click', editBalancesModal);
+}
+
+function renderDashCardSpend(){
+  var el=document.getElementById('dashCardSpendInline'); if(!el) return;
+  var cards={};
+  DATA.transactions.forEach(function(t){
+    if(t.type!=='지출') return;
+    if(String(t.method||'').indexOf('카드')<0) return;
+    var m=(t.date||'').slice(0,7);
+    cards[t.method]=cards[t.method]||{_tot:0}; cards[t.method][m]=(cards[t.method][m]||0)+t.amount; cards[t.method]._tot+=t.amount;
+  });
+  var names=Object.keys(cards).sort();
+  if(!names.length){el.innerHTML='<div class="empty">카드 지출 내역이 없습니다</div>';return;}
+  var mset={}; names.forEach(function(n){Object.keys(cards[n]).forEach(function(m){if(m!=='_tot')mset[m]=1;});});
+  var mkeys=Object.keys(mset).sort().slice(-6);
+  var h='<div style="overflow-x:auto"><table class="an-table"><thead><tr><th>카드</th>'+mkeys.map(function(m){return '<th class="num">'+m.slice(2)+'</th>';}).join('')+'<th class="num">합계</th></tr></thead><tbody>';
+  names.forEach(function(n){ h+='<tr><td>'+escape(n)+'</td>'+mkeys.map(function(m){return '<td class="num">'+(cards[n][m]?fmtKRW(cards[n][m]):'-')+'</td>';}).join('')+'<td class="num tot">'+fmtKRW(cards[n]._tot)+'</td></tr>'; });
+  var grand=names.reduce(function(x,n){return x+cards[n]._tot;},0);
+  h+='</tbody><tfoot><tr><td>전체</td>'+mkeys.map(function(m){var s=names.reduce(function(x,n){return x+(cards[n][m]||0);},0);return '<td class="num">'+fmtKRW(s)+'</td>';}).join('')+'<td class="num tot">'+fmtKRW(grand)+'</td></tr></tfoot></table></div>';
+  el.innerHTML=h;
+}
+
+function renderDashDividend(){
+  var el=document.getElementById('dashDividendInline'); if(!el) return;
+  var per={};
+  DATA.transactions.forEach(function(t){
+    var c=t.cat||'', d=t.desc||'';
+    if(!(c.indexOf('분배')>=0||c.indexOf('배당')>=0||d.indexOf('배당')>=0||d.indexOf('분배')>=0)) return;
+    var name=d.replace(/\d+\./,'').replace(/(배당금|배당|분배금|분배)/g,'').replace(/\(.*$/,'').trim();
+    if(!name) name=d||'(미상)';
+    per[name]=per[name]||{cnt:0,amt:0,dates:[]};
+    per[name].cnt++; per[name].amt+=t.amount; per[name].dates.push(t.date);
+  });
+  var names=Object.keys(per).sort(function(a,b){return per[b].amt-per[a].amt;});
+  if(!names.length){el.innerHTML='<div class="empty">배당/분배 내역이 없습니다</div>';return;}
+  var tot=names.reduce(function(x,n){return x+per[n].amt;},0);
+  var tc=names.reduce(function(x,n){return x+per[n].cnt;},0);
+  var h='<table class="an-table"><thead><tr><th>대상</th><th class="num">건수</th><th class="num">지급액</th><th>최근일</th></tr></thead><tbody>';
+  names.forEach(function(n){ var p=per[n]; h+='<tr><td>'+escape(n)+'</td><td class="num">'+p.cnt+'</td><td class="num">'+fmtKRW(p.amt)+'원</td><td>'+escape(p.dates.sort().slice(-1)[0]||'')+'</td></tr>'; });
+  h+='</tbody><tfoot><tr><td>합계</td><td class="num">'+tc+'</td><td class="num tot">'+fmtKRW(tot)+'원</td><td></td></tr></tfoot></table>';
+  el.innerHTML=h;
+}
+
+function renderDashGolf(){
+  var el=document.getElementById('dashGolfInline'); if(!el) return;
+  var rows=DATA.transactions.filter(function(t){ var s=(t.cat||'')+(t.desc||''); return s.indexOf('골프')>=0||s.indexOf('캐디')>=0; });
+  if(!rows.length){el.innerHTML='<div class="empty">골프 관련 내역이 없습니다</div>';return;}
+  rows.sort(function(a,b){return (a.date<b.date)?-1:1;});
+  var tot=rows.reduce(function(x,t){return x+(t.type==='수입'?-t.amount:t.amount);},0);
+  var h='<div class="an-sum">골프 관련 총액 <b>'+fmtKRW(tot)+'원</b> · '+rows.length+'건</div>';
+  h+='<div style="overflow-x:auto"><table class="an-table"><thead><tr><th>날짜</th><th>내용</th><th>구성원</th><th>결제</th><th class="num">금액</th></tr></thead><tbody>';
+  rows.forEach(function(t){ h+='<tr><td>'+escape(t.date)+'</td><td>'+escape(t.desc||'')+'</td><td>'+escape(t.user||'')+'</td><td>'+escape(t.method||'')+'</td><td class="num">'+fmtKRW(t.amount)+'</td></tr>'; });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+
 function openAnalysis(title, html){
   var t=document.getElementById('analysisTitle'), b=document.getElementById('analysisBody'), m=document.getElementById('analysisModal');
   if(!m) return; t.textContent=title; b.innerHTML=html; m.classList.add('active');
@@ -1031,6 +1106,7 @@ function analysisMonthlyNet(){
   on('btnPayMethod',analysisPayMethod);
   on('btnMonthlyNet',analysisMonthlyNet);
   on('btnEditBalances',editBalancesModal);
+  on('btnEditBalances2',editBalancesModal);
   on('analysisClose',closeAnalysis);
   var m=document.getElementById('analysisModal');
   if(m) m.addEventListener('click',function(e){ if(e.target===m) closeAnalysis(); });
