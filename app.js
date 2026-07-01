@@ -818,12 +818,19 @@ function defaultBalances(){
 function getBalances(){ if(!DATA.balances){ DATA.balances = defaultBalances(); } return DATA.balances; }
 function setBalances(b){ DATA.balances = b; saveData(true); }
 function isBankMethod(m){ m=m||''; return m.indexOf('은행')>=0 || m==='현금'; }
+function canonMethod(m){
+  m=m||'-';
+  if(m==='신한은행(이체)'||m==='신한은행개인(이체)') return '신한은행 개인(이체)';
+  if(m==='농협은행(이체)') return '농협은행 개인(이체)';
+  return m;
+}
 function accountGroups(){
   var g={};
   DATA.transactions.forEach(function(t){
     if(!isBankMethod(t.method)) return;
-    var key=(t.user||'-')+'|'+(t.method||'-');
-    if(!g[key]) g[key]={user:t.user||'-',method:t.method||'-',inc:0,exp:0,trf:0};
+    var cm=canonMethod(t.method);
+    var key=(t.user||'-')+'|'+cm;
+    if(!g[key]) g[key]={user:t.user||'-',method:cm,inc:0,exp:0,trf:0};
     if(t.type==='수입') g[key].inc+=t.amount;
     else if(t.type==='지출') g[key].exp+=t.amount;
     else g[key].trf+=t.amount;
@@ -913,8 +920,25 @@ function editBalancesModal(){
     setBalances(b); closeAnalysis(); renderBalances(); toast('실잔액 저장됨','ok');
   });
 }
+function analysisBalances(){
+  var g=accountGroups(); var bal=getBalances();
+  Object.keys(bal).forEach(function(k){ if(!g[k]){var p=k.split('|');g[k]={user:p[0],method:p[1],inc:0,exp:0,trf:0};} });
+  var keys=Object.keys(g).sort();
+  var h='<div class="an-note">각 통장의 월말 잔고(실잔액)를 입력하면 저장·기기간 동기화됩니다. 순증감은 기록된 수입-지출 합계입니다.</div>';
+  h+='<table class="an-table"><thead><tr><th>통장</th><th class="num">월말 잔고(원)</th><th class="num">순증감</th></tr></thead><tbody>';
+  keys.forEach(function(k){ var a=g[k]; var net=a.inc-a.exp; h+='<tr><td>'+escape(a.user)+' · '+escape(a.method)+'</td><td class="num"><input type="number" class="bal-input" data-key="'+escape(k)+'" value="'+(bal[k]!=null?bal[k]:'')+'"></td><td class="num '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'')+fmtKRW(net)+'</td></tr>'; });
+  h+='</tbody></table><div style="margin-top:14px;text-align:right"><button class="btn btn-primary" id="balSave">저장</button></div>';
+  openAnalysis('🏦 통장별 월말 잔고', h);
+  var sv=document.getElementById('balSave');
+  if(sv) sv.addEventListener('click', function(){
+    var b=getBalances();
+    document.querySelectorAll('.bal-input').forEach(function(inp){ var v=String(inp.value).trim(); if(v==='') delete b[inp.dataset.key]; else b[inp.dataset.key]=parseInt(v.replace(/[^\d-]/g,''))||0; });
+    setBalances(b); toast('월말 잔고 저장됨','ok'); analysisBalances();
+  });
+}
 (function(){
   function on(id,fn){ var e=document.getElementById(id); if(e) e.addEventListener('click',fn); }
+  on('btnBalances',analysisBalances);
   on('btnCardSpend',analysisCardSpend);
   on('btnDividend',analysisDividend);
   on('btnGolf',analysisGolf);
