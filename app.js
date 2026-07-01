@@ -939,7 +939,11 @@ function analysisBalances(){
 (function(){
   function on(id,fn){ var e=document.getElementById(id); if(e) e.addEventListener('click',fn); }
   on('btnBalances',analysisBalances);
+  on('navBalances',analysisBalances);
   on('btnCardSpend',analysisCardSpend);
+  on('navCardSpend',analysisCardSpend);
+  on('navDividend',analysisDividend);
+  on('navGolf',analysisGolf);
   on('btnDividend',analysisDividend);
   on('btnGolf',analysisGolf);
   on('btnEditBalances',editBalancesModal);

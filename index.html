@@ -360,6 +360,10 @@ input[type="file"]{display:none}
     <button class="nav-tab active" data-view="dash"><span class="ico">📊</span>대시보드</button>
     <button class="nav-tab" data-view="monthly"><span class="ico">📅</span>월별</button>
     <button class="nav-tab" data-view="txlist"><span class="ico">📋</span>거래내역</button>
+    <button class="nav-tab" id="navBalances"><span class="ico">🏦</span>월말잔고</button>
+    <button class="nav-tab" id="navCardSpend"><span class="ico">💳</span>카드지출</button>
+    <button class="nav-tab" id="navDividend"><span class="ico">💰</span>배당금</button>
+    <button class="nav-tab" id="navGolf"><span class="ico">⛳</span>골프비용</button>
     <button class="nav-tab" data-view="category"><span class="ico">🏷</span>카테고리</button>
     <button class="nav-tab" data-view="member"><span class="ico">👥</span>구성원별</button>
     <button class="nav-tab" data-view="input"><span class="ico">➕</span>입력·업로드</button>
@@ -395,11 +399,6 @@ input[type="file"]{display:none}
   </div>
 
   <div class="section">
-    <div class="section-head"><div><h2 class="section-title">지출 TOP 8 카테고리</h2><div class="section-desc">가장 많이 지출한 카테고리 순</div></div></div>
-    <div class="panel"><div id="dashTopCats"></div></div>
-  </div>
-
-  <div class="section">
     <div class="section-head"><div><h2 class="section-title">빠른 분석</h2><div class="section-desc">카드·배당·골프 현황</div></div></div>
     <div class="analysis-btns">
       <button class="btn btn-primary" id="btnBalances">🏦 통장별 월말 잔고</button>
@@ -407,6 +406,11 @@ input[type="file"]{display:none}
       <button class="btn btn-primary" id="btnDividend">💰 인별 배당금 지급현황</button>
       <button class="btn btn-primary" id="btnGolf">⛳ 골프 관련 비용</button>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">지출 TOP 8 카테고리</h2><div class="section-desc">가장 많이 지출한 카테고리 순</div></div></div>
+    <div class="panel"><div id="dashTopCats"></div></div>
   </div>
 </section>
 
@@ -711,6 +715,6 @@ input[type="file"]{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="data.js"></script>
-<script src="app.js?v=20260701c"></script>
+<script src="app.js?v=20260701e"></script>
 </body>
 </html>
