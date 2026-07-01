@@ -360,10 +360,10 @@ input[type="file"]{display:none}
     <button class="nav-tab active" data-view="dash"><span class="ico">📊</span>대시보드</button>
     <button class="nav-tab" data-view="monthly"><span class="ico">📅</span>월별</button>
     <button class="nav-tab" data-view="txlist"><span class="ico">📋</span>거래내역</button>
-    <button class="nav-tab" id="navBalances"><span class="ico">🏦</span>월말잔고</button>
-    <button class="nav-tab" id="navCardSpend"><span class="ico">💳</span>카드지출</button>
-    <button class="nav-tab" id="navDividend"><span class="ico">💰</span>배당금</button>
-    <button class="nav-tab" id="navGolf"><span class="ico">⛳</span>골프비용</button>
+    <button class="nav-tab" data-view="balances"><span class="ico">🏦</span>월말잔고</button>
+    <button class="nav-tab" data-view="cardspend"><span class="ico">💳</span>카드지출</button>
+    <button class="nav-tab" data-view="dividend"><span class="ico">💰</span>배당금</button>
+    <button class="nav-tab" data-view="golf"><span class="ico">⛳</span>골프비용</button>
     <button class="nav-tab" data-view="category"><span class="ico">🏷</span>카테고리</button>
     <button class="nav-tab" data-view="member"><span class="ico">👥</span>구성원별</button>
     <button class="nav-tab" data-view="input"><span class="ico">➕</span>입력·업로드</button>
@@ -398,26 +398,7 @@ input[type="file"]{display:none}
     <div class="month-grid" id="dashMonthGrid"></div>
   </div>
 
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">🏦 통장별 월말 잔고</h2></div>
-      <button class="btn btn-sm" id="btnEditBalances2">✏️ 잔고 수정</button></div>
-    <div class="panel" id="dashBalancesInline"><div class="empty">데이터 로딩 중…</div></div>
-  </div>
-
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">💳 월별 카드 지출내역</h2></div></div>
-    <div class="panel" id="dashCardSpendInline"><div class="empty">데이터 로딩 중…</div></div>
-  </div>
-
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">💰 인별 배당금 지급현황</h2></div></div>
-    <div class="panel" id="dashDividendInline"><div class="empty">데이터 로딩 중…</div></div>
-  </div>
-
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">⛳ 골프 관련 비용</h2></div></div>
-    <div class="panel" id="dashGolfInline"><div class="empty">데이터 로딩 중…</div></div>
-  </div>
+  
 
   <div class="section">
     <div class="section-head"><div><h2 class="section-title">지출 TOP 8 카테고리</h2><div class="section-desc">가장 많이 지출한 카테고리 순</div></div></div>
@@ -593,6 +574,38 @@ input[type="file"]{display:none}
 </section>
 
 <!-- ===== SETTINGS ===== -->
+
+<section class="view" id="view-balances">
+  <div class="section">
+    <div class="section-head">
+      <div><h2 class="section-title">🏦 통장별 월말 잔고</h2><div class="section-desc">통장별 잔고 및 순증감</div></div>
+      <button class="btn btn-primary" style="font-size:.85rem;padding:8px 16px" id="btnEditBalancesV">✏️ 잔고 직접 입력</button>
+    </div>
+    <div class="panel" id="viewBalancesBody"><div class="empty">데이터 없음</div></div>
+  </div>
+</section>
+
+<section class="view" id="view-cardspend">
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">💳 월별 카드 지출내역</h2><div class="section-desc">카드별 × 월별 지출 합계</div></div></div>
+    <div class="panel" id="viewCardSpendBody"><div class="empty">데이터 없음</div></div>
+  </div>
+</section>
+
+<section class="view" id="view-dividend">
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">💰 인별 배당금 지급현황</h2><div class="section-desc">대상자별 배당·분배금 현황</div></div></div>
+    <div class="panel" id="viewDividendBody"><div class="empty">데이터 없음</div></div>
+  </div>
+</section>
+
+<section class="view" id="view-golf">
+  <div class="section">
+    <div class="section-head"><div><h2 class="section-title">⛳ 골프 관련 비용</h2><div class="section-desc">골프·캐디 관련 전체 내역</div></div></div>
+    <div class="panel" id="viewGolfBody"><div class="empty">데이터 없음</div></div>
+  </div>
+</section>
+
 <section class="view" id="view-settings">
   <div class="section">
     <div class="section-head"><div><h2 class="section-title">설정 · 동기화 · 백업</h2><div class="section-desc">기기 간 자동 연동과 백업·복원</div></div></div>
