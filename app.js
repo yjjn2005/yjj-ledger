@@ -1283,5 +1283,6 @@ renderMonthly();
 renderTxList();
 renderCategory();
 renderMember();
+try{ renderBalances(); }catch(_){}
 if(!getSyncConfig().enabled) flashSync('saved');
 setTimeout(autoSyncOnLoad, 800);
