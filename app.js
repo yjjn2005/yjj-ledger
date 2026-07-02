@@ -23,7 +23,23 @@ function deepClone(o){return JSON.parse(JSON.stringify(o))}
 let DATA = (()=>{
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){const p = JSON.parse(raw); if(p && p.transactions) return p;}
+    if(raw){
+      const p = JSON.parse(raw);
+      if(p && p.transactions){
+        const localCnt = p.transactions.length;
+        const initCnt = window.INITIAL_DATA.transactions.length;
+        const localTime = p.updatedAt || p.updated || '';
+        const initTime = window.INITIAL_DATA.updatedAt || window.INITIAL_DATA.updated || '';
+        // localStorage 데이터가 INITIAL_DATA보다 건수가 많거나 최신이면 localStorage 사용
+        if(localCnt >= initCnt || localTime > initTime){
+          return p;
+        }
+        // INITIAL_DATA가 더 최신/많으면 localStorage 업데이트 후 INITIAL_DATA 사용
+        console.log('[BOOT] localStorage('+localCnt+'건) < INITIAL_DATA('+initCnt+'건) → INITIAL_DATA 사용');
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(window.INITIAL_DATA));
+        return deepClone(window.INITIAL_DATA);
+      }
+    }
   }catch(e){}
   return deepClone(window.INITIAL_DATA);
 })();
@@ -1588,6 +1604,16 @@ async function autoSyncOnLoad() {
     // 동기화 실패 시 조용히 무시 (로컬 데이터 사용)
     console.warn('[autoSync] 실패:', e.message);
   }
+}
+
+// ===== 최신 INITIAL_DATA 강제 복원 함수 =====
+function resetToLatest(){
+  if(!confirm('localStorage를 초기화하고 최신 데이터(' + window.INITIAL_DATA.transactions.length + '건)로 복원합니까?\n\n⚠️ 앱에서 직접 추가/수정한 내용은 사라집니다.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  DATA = deepClone(window.INITIAL_DATA);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  rerenderAll();
+  toast('✅ 최신 데이터(' + DATA.transactions.length + '건)로 복원 완료!', 'ok');
 }
 
 // ---------- 초기 부트 ----------
