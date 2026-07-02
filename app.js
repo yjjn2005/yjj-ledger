@@ -13,6 +13,7 @@ const SYNC_KEY = 'yukim_ledger_sync_v1';
 const FILE_NAME = '유앤김_가계부_데이터.json';
 const GIST_FILENAME = 'yukim_ledger.json';
 const PULL_INTERVAL_MS = 30000;
+const PUBLIC_GIST_ID = '94caed101e1ce868e890fd839d041260'; // 공용 동기화 Gist
 const PUSH_DEBOUNCE_MS = 2000;
 const PAGE_SIZE = 30;
 
@@ -54,7 +55,8 @@ function saveData(silent, opts){
   }
   if(!opts.fromRemote){
     const cfg = getSyncConfig();
-    if(cfg.enabled && cfg.token && cfg.gistId) schedulePush();
+    if(cfg.token) schedulePush(); // token만 있으면 (enabled 체크 없이) Public Gist 업데이트
+    else if(cfg.enabled && cfg.gistId) schedulePush();
   }
 }
 function flashSync(state){
@@ -643,6 +645,15 @@ function schedulePush(){
 }
 async function doPush(){
   const cfg = getSyncConfig();
+  // Public Gist 자동 업데이트 (모바일 자동 동기화 소스)
+  // getSyncConfig에 token이 있으면 Public Gist도 동시 업데이트
+  if(cfg.token) {
+    try {
+      await updateGist(cfg.token, PUBLIC_GIST_ID, DATA);
+    } catch(e) {
+      console.warn('[publicGist] 업데이트 실패:', e.message);
+    }
+  }
   if(!cfg.enabled || !cfg.token || !cfg.gistId) return;
   if(pushInflight){schedulePush(); return}
   pushInflight = true;
@@ -789,6 +800,8 @@ window.addEventListener('storage', function(e){
 // 화면이 다시 보이면: 로컬 최신본 재적재 + (동기화 시) 클라우드 최신본 확인
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState!=='visible') return;
+  // 앱 전환 후 복귀시 클라우드 동기화 (모바일에서 다른 앱 갔다 돌아올 때)
+  setTimeout(autoSyncOnLoad, 200);
   try{
     var raw = localStorage.getItem(STORAGE_KEY);
     if(raw){ var p = JSON.parse(raw); if(p && p.transactions && (p.updatedAt||'') > (DATA.updatedAt||'')){ DATA = p; rerenderAll(); } }
@@ -1510,7 +1523,10 @@ async function mobileSyncFromGist() {
   const origText = btn ? btn.textContent : '';
   if(btn) { btn.disabled = true; btn.textContent = '동기화 중...'; }
   try {
-    const resp = await fetch(PUBLIC_GIST_RAW + '?t=' + Date.now());
+    const resp = await fetch(PUBLIC_GIST_RAW + '?nocache=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+    });
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
     const remote = await resp.json();
     if(!remote || !remote.transactions) throw new Error('데이터 없음');
@@ -1528,19 +1544,49 @@ async function mobileSyncFromGist() {
 
 async function autoSyncOnLoad() {
   try {
-    const resp = await fetch(PUBLIC_GIST_RAW + '?t=' + Date.now());
+    // 캐시버스터 + no-cache 헤더로 항상 최신 데이터 요청
+    const resp = await fetch(PUBLIC_GIST_RAW + '?nocache=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+    });
     if(!resp.ok) return;
     const remote = await resp.json();
     if(!remote || !remote.transactions) return;
-    const localTime = DATA.updatedAt || DATA.updated || '';
-    const remoteTime = remote.updatedAt || remote.updated || '';
-    if(remoteTime > localTime || remote.transactions.length > DATA.transactions.length) {
+
+    // localStorage에 실제 저장된 데이터가 있는지 확인
+    const hasLocalSaved = !!localStorage.getItem('yukim_ledger_v1');
+    const localTxCount = DATA.transactions ? DATA.transactions.length : 0;
+    const remoteTxCount = remote.transactions.length;
+
+    // 로컬 저장 데이터가 없으면 (모바일 첫 접속, INITIAL_DATA만 있는 경우) 무조건 Gist 사용
+    if(!hasLocalSaved) {
       DATA = remote;
       localStorage.setItem('yukim_ledger_v1', JSON.stringify(DATA));
       rerenderAll();
-      toast('클라우드 동기화 완료 — ' + remote.transactions.length + '건', 'ok');
+      toast('☁ 클라우드 데이터 로드 완료 — ' + remoteTxCount + '건', 'ok');
+      return;
     }
-  } catch(e) {}
+
+    // 로컬 저장 데이터가 있으면 updatedAt 비교 (정확한 ISO 문자열 비교)
+    const localRaw = localStorage.getItem('yukim_ledger_v1');
+    const localSaved = localRaw ? JSON.parse(localRaw) : null;
+    const localTime = localSaved ? (localSaved.updatedAt || localSaved.updated || '') : '';
+    const remoteTime = remote.updatedAt || remote.updated || '';
+
+    const shouldUpdate = (remoteTime && localTime && remoteTime > localTime) ||
+                         (!localTime && remoteTxCount > 0) ||
+                         (remoteTxCount > localTxCount + 5); // 원격이 5건 이상 많으면 업데이트
+
+    if(shouldUpdate) {
+      DATA = remote;
+      localStorage.setItem('yukim_ledger_v1', JSON.stringify(DATA));
+      rerenderAll();
+      toast('☁ 동기화 완료 — ' + remoteTxCount + '건', 'ok');
+    }
+  } catch(e) {
+    // 동기화 실패 시 조용히 무시 (로컬 데이터 사용)
+    console.warn('[autoSync] 실패:', e.message);
+  }
 }
 
 // ---------- 초기 부트 ----------
@@ -1557,4 +1603,8 @@ renderViewCardSpend();
 renderViewDividend();
 renderViewGolf();
 if(!getSyncConfig().enabled) flashSync('saved');
-setTimeout(autoSyncOnLoad, 800);
+// 앱 시작 즉시 클라우드 동기화 (300ms 후 - DOM 안정화 대기)
+setTimeout(autoSyncOnLoad, 300);
+// 5분마다 자동 백그라운드 동기화 (탭을 열어두면 자동 최신화)
+setInterval(autoSyncOnLoad, 5 * 60 * 1000);
+
