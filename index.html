@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -6,180 +6,404 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1E3A5F">
+<meta name="theme-color" content="#1A2F4E">
 <title>유앤김 패밀리 가계부</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700;900&family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
+/* ── DESIGN TOKENS ── */
 :root{
-  --bg:#F7F3EC;--bg-soft:#FAF7F2;--surface:#FFFFFF;--surface-2:#FDFBF7;
-  --navy:#1E3A5F;--navy-deep:#142849;--gold:#C9A961;--gold-deep:#A8893D;--gold-soft:#E8D9B0;
-  --sage:#7A8B6F;--burgundy:#7A2D3F;
-  --inc:#15803d;--inc-soft:#dcfce7;
-  --exp:#b91c1c;--exp-soft:#fee2e2;
-  --trf:#6b21a8;--trf-soft:#f3e8ff;
-  --text:#1F1F1F;--text-muted:#6B6B6B;--text-light:#9A9A9A;
-  --border:#E8E1D3;--border-soft:#F0EAE0;
-  --shadow-sm:0 1px 2px rgba(20,40,73,.04),0 1px 3px rgba(20,40,73,.06);
-  --shadow:0 4px 14px rgba(20,40,73,.06),0 2px 4px rgba(20,40,73,.04);
-  --shadow-lg:0 20px 50px -12px rgba(20,40,73,.18),0 8px 18px -8px rgba(20,40,73,.10);
-  --radius:14px;--radius-lg:22px;
+  --bg:#F0F2F7;
+  --bg-soft:#F7F8FB;
+  --surface:#FFFFFF;
+  --surface-2:#F4F6FA;
+  --navy:#1A2F4E;
+  --navy-deep:#0F1E35;
+  --navy-light:#2B4A75;
+  --gold:#C9A961;
+  --gold-deep:#A8893D;
+  --gold-soft:#F0E5C7;
+  --gold-pale:#FAF5E8;
+  --sage:#6B8068;
+  --burgundy:#8B2D3F;
+  --inc:#0A7A43;
+  --inc-soft:#E6F7EF;
+  --exp:#C0392B;
+  --exp-soft:#FDECEA;
+  --trf:#5B35A0;
+  --trf-soft:#EEE8FA;
+  --text:#111827;
+  --text-muted:#4B5878;
+  --text-light:#8A93A8;
+  --border:#DDE2EE;
+  --border-soft:#E8ECF5;
+  --shadow-xs:0 1px 2px rgba(10,24,50,.05);
+  --shadow-sm:0 2px 8px rgba(10,24,50,.07),0 1px 2px rgba(10,24,50,.04);
+  --shadow:0 8px 24px rgba(10,24,50,.09),0 2px 6px rgba(10,24,50,.05);
+  --shadow-lg:0 24px 60px -12px rgba(10,24,50,.18),0 8px 20px -6px rgba(10,24,50,.10);
+  --radius:14px;
+  --radius-lg:20px;
+  --radius-xl:26px;
 }
+
+/* ── RESET ── */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{
   font-family:'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-  background:var(--bg);color:var(--text);line-height:1.65;letter-spacing:-.005em;
-  -webkit-font-smoothing:antialiased;font-feature-settings:"ss03","ss04","tnum";
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.65;
+  letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss03","ss04","tnum";
   padding-bottom:env(safe-area-inset-bottom);
 }
 .serif{font-family:'Noto Serif KR',serif;letter-spacing:-.02em}
 
 /* ── TOPBAR ── */
-.topbar{position:sticky;top:0;z-index:50;background:rgba(247,243,236,.85);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid var(--border-soft);padding:14px 22px;padding-top:max(14px,env(safe-area-inset-top))}
-.topbar-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:rgba(26,47,78,.96);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  padding:0 24px;
+  padding-top:env(safe-area-inset-top);
+}
+.topbar-inner{
+  max-width:1320px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  height:58px;gap:16px;
+}
 .brand{display:flex;align-items:center;gap:12px;min-width:0}
-.brand-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--navy) 0%,var(--navy-deep) 100%);color:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR';font-weight:700;font-size:18px;box-shadow:0 6px 14px -6px rgba(20,40,73,.5);flex-shrink:0}
-.brand-text{display:flex;flex-direction:column;line-height:1.15;min-width:0}
-.brand-title{font-family:'Noto Serif KR';font-weight:700;color:var(--navy);font-size:15px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand-sub{font-size:10.5px;color:var(--gold-deep);font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.brand-mark{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-deep) 100%);
+  color:var(--navy-deep);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Noto Serif KR';font-weight:900;font-size:16px;
+  flex-shrink:0;
+  box-shadow:0 4px 12px rgba(201,169,97,.4);
+}
+.brand-text{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.brand-title{
+  font-family:'Noto Serif KR';font-weight:700;
+  color:#fff;font-size:14.5px;letter-spacing:.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.brand-sub{font-size:10px;color:rgba(201,169,97,.8);font-weight:600;letter-spacing:.2em;text-transform:uppercase}
 .top-actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
-.icon-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;font-size:17px}
-.icon-btn:hover{background:var(--navy);color:var(--gold);border-color:var(--navy);transform:translateY(-1px)}
-.icon-btn.active{background:var(--navy);color:var(--gold);border-color:var(--navy)}
-.sync-pill{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--border);font-size:12px;color:var(--text-muted);font-weight:500}
-.sync-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
-.sync-dot.dirty{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.2)}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.08);
+  color:rgba(255,255,255,.8);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;font-size:17px;
+}
+.icon-btn:hover{background:rgba(201,169,97,.2);color:var(--gold);border-color:rgba(201,169,97,.3)}
+.icon-btn.active{background:rgba(201,169,97,.25);color:var(--gold);border-color:rgba(201,169,97,.4)}
+.sync-pill{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 12px;border-radius:999px;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.15);
+  font-size:11.5px;color:rgba(255,255,255,.7);font-weight:500;
+}
+.sync-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#4ade80;
+  box-shadow:0 0 0 3px rgba(74,222,128,.2);
+}
+.sync-dot.dirty{
+  background:#fbbf24;
+  box-shadow:0 0 0 3px rgba(251,191,36,.2);
+}
 
-/* ── NAV ── */
-.nav-tabs{max-width:1280px;margin:0 auto;display:flex;gap:4px;padding:10px 22px 0;overflow-x:auto;scrollbar-width:none}
+/* ── NAV TABS ── */
+.nav-bar{
+  background:var(--navy);
+  border-bottom:1px solid rgba(255,255,255,.07);
+  overflow:hidden;
+}
+.nav-tabs{
+  max-width:1320px;margin:0 auto;
+  display:flex;gap:2px;padding:8px 16px;
+  overflow-x:auto;scrollbar-width:none;
+}
 .nav-tabs::-webkit-scrollbar{display:none}
-.nav-tab{padding:10px 16px;border-radius:11px 11px 0 0;background:transparent;border:none;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text-muted);white-space:nowrap;transition:all .2s;border-bottom:2.5px solid transparent;display:flex;align-items:center;gap:6px}
-.nav-tab:hover{color:var(--navy)}
-.nav-tab.active{color:var(--navy);border-bottom-color:var(--gold)}
-.nav-tab .ico{font-size:15px}
+.nav-tab{
+  padding:8px 16px;border-radius:8px;
+  background:transparent;border:none;cursor:pointer;
+  font-family:inherit;font-size:13px;font-weight:600;
+  color:rgba(255,255,255,.5);
+  white-space:nowrap;transition:all .2s;
+  display:flex;align-items:center;gap:6px;
+  flex-shrink:0;
+}
+.nav-tab:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.07)}
+.nav-tab.active{
+  color:var(--navy-deep);
+  background:var(--gold);
+}
+.nav-tab.active:hover{background:var(--gold-deep);color:#fff}
+.nav-tab .ico{font-size:14px}
 
 /* ── HERO ── */
-.hero{max-width:1280px;margin:0 auto;padding:40px 22px 24px;background:radial-gradient(ellipse at top right,rgba(201,169,97,.12) 0%,transparent 60%),radial-gradient(ellipse at bottom left,rgba(30,58,95,.06) 0%,transparent 50%)}
-.hero-eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 14px;border-radius:999px;background:rgba(201,169,97,.14);color:var(--gold-deep);font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;margin-bottom:18px}
+.hero{
+  max-width:1320px;margin:0 auto;padding:40px 24px 28px;
+  background:linear-gradient(135deg,rgba(26,47,78,.03) 0%,transparent 60%);
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:5px 14px;border-radius:999px;
+  background:var(--gold-pale);
+  border:1px solid var(--gold-soft);
+  color:var(--gold-deep);font-size:10.5px;font-weight:700;
+  letter-spacing:.22em;text-transform:uppercase;margin-bottom:16px;
+}
 .hero-eyebrow::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--gold)}
-.hero h1{font-family:'Noto Serif KR';font-weight:700;font-size:clamp(30px,4.8vw,48px);line-height:1.12;color:var(--navy);letter-spacing:-.025em}
+.hero h1{
+  font-family:'Noto Serif KR';font-weight:700;
+  font-size:clamp(28px,4vw,44px);
+  line-height:1.12;color:var(--navy);letter-spacing:-.03em;
+}
 .hero h1 .accent{color:var(--gold-deep);font-style:italic;font-weight:400}
-.hero-lede{margin-top:14px;max-width:680px;font-size:clamp(14px,1.5vw,16px);color:var(--text-muted);font-weight:400;line-height:1.7}
-.hero-meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:14px 26px;font-size:12px;color:var(--text-muted)}
-.hero-meta b{color:var(--navy);font-weight:700;letter-spacing:.02em}
+.hero-lede{
+  margin-top:14px;max-width:660px;
+  font-size:clamp(13.5px,1.4vw,15px);
+  color:var(--text-muted);font-weight:400;line-height:1.75;
+}
+.hero-meta{
+  margin-top:18px;display:flex;flex-wrap:wrap;
+  gap:12px 24px;font-size:12px;color:var(--text-muted);
+}
+.hero-meta b{color:var(--navy);font-weight:700}
 
-/* ── KPI STATS ── */
-.kpis{max-width:1280px;margin:0 auto;padding:8px 22px 36px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.kpi{position:relative;background:var(--surface);border-radius:var(--radius-lg);padding:22px 22px;box-shadow:var(--shadow-sm);border:1px solid var(--border-soft);overflow:hidden;transition:all .25s ease}
-.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-.kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px}
-.kpi.inc::before{background:linear-gradient(90deg,var(--inc),#86efac)}
-.kpi.exp::before{background:linear-gradient(90deg,var(--exp),#fca5a5)}
-.kpi.bal::before{background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
-.kpi.cnt::before{background:linear-gradient(90deg,var(--navy),#3b82f6)}
-.kpi-label{font-size:11px;font-weight:700;color:var(--gold-deep);letter-spacing:.18em;text-transform:uppercase;margin-bottom:8px}
-.kpi-value{font-family:'Noto Serif KR';font-weight:700;font-size:clamp(20px,2.4vw,30px);color:var(--navy);letter-spacing:-.02em;line-height:1.1}
-.kpi-sub{margin-top:5px;font-size:11.5px;color:var(--text-muted)}
+/* ── KPI CARDS ── */
+.kpis{
+  max-width:1320px;margin:0 auto;
+  padding:4px 24px 32px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+}
+.kpi{
+  position:relative;background:var(--surface);
+  border-radius:var(--radius-lg);
+  padding:22px 22px 20px;
+  box-shadow:var(--shadow-sm);
+  border:1px solid var(--border-soft);
+  overflow:hidden;transition:all .25s ease;
+}
+.kpi:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.kpi::after{
+  content:"";position:absolute;
+  inset:0;border-radius:var(--radius-lg);
+  background:linear-gradient(135deg,rgba(255,255,255,.6) 0%,transparent 60%);
+  pointer-events:none;
+}
+.kpi-accent{position:absolute;top:0;left:0;right:0;height:3.5px;border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+.kpi.inc .kpi-accent{background:linear-gradient(90deg,var(--inc),#34d399)}
+.kpi.exp .kpi-accent{background:linear-gradient(90deg,var(--exp),#f87171)}
+.kpi.bal .kpi-accent{background:linear-gradient(90deg,var(--gold-deep),var(--gold))}
+.kpi.cnt .kpi-accent{background:linear-gradient(90deg,var(--navy),#60a5fa)}
+.kpi-label{
+  font-size:10.5px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;margin-bottom:10px;
+  color:var(--text-muted);
+}
+.kpi-value{
+  font-family:'Noto Serif KR';font-weight:700;
+  font-size:clamp(18px,2.2vw,28px);
+  letter-spacing:-.02em;line-height:1.1;
+}
+.kpi-sub{margin-top:6px;font-size:11px;color:var(--text-light)}
 .kpi.inc .kpi-value{color:var(--inc)}
 .kpi.exp .kpi-value{color:var(--exp)}
 .kpi.bal .kpi-value{color:var(--gold-deep)}
-@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi.cnt .kpi-value{color:var(--navy)}
+@media(max-width:768px){.kpis{grid-template-columns:repeat(2,1fr)}}
 
 /* ── SECTION ── */
-.section{max-width:1280px;margin:0 auto;padding:26px 22px}
-.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px;flex-wrap:wrap}.btn-sm{padding:6px 14px;font-size:.82rem;border-radius:8px}
-.section-title{font-family:'Noto Serif KR';font-weight:700;font-size:clamp(20px,2.6vw,26px);color:var(--navy);letter-spacing:-.02em}
-.section-title .badge{display:inline-block;margin-left:10px;padding:3px 10px;border-radius:6px;background:var(--navy);color:var(--gold);font-family:'Pretendard';font-size:12px;font-weight:700;letter-spacing:.05em;vertical-align:middle}
-.section-desc{font-size:13px;color:var(--text-muted);margin-top:4px;font-weight:400}
+.section{max-width:1320px;margin:0 auto;padding:24px 24px}
+.section-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:16px;margin-bottom:20px;flex-wrap:wrap;
+}
+.section-title{
+  font-family:'Noto Serif KR';font-weight:700;
+  font-size:clamp(18px,2.4vw,24px);
+  color:var(--navy);letter-spacing:-.025em;
+}
+.section-title .badge{
+  display:inline-block;margin-left:10px;
+  padding:2px 9px;border-radius:6px;
+  background:var(--navy);color:var(--gold);
+  font-family:'Pretendard';font-size:11px;font-weight:700;
+  letter-spacing:.06em;vertical-align:middle;
+}
+.section-desc{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+.btn-sm{padding:7px 14px;font-size:.8rem;border-radius:8px}
 
-.view{display:none}.view.active{display:block;animation:fadeIn .25s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.view{display:none}.view.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-/* ── CARD / PANEL ── */
-.panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border-soft);padding:24px 26px;box-shadow:var(--shadow-sm);margin-bottom:18px}
-.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border-soft);gap:14px;flex-wrap:wrap}
-.panel-title{font-family:'Noto Serif KR';font-weight:700;font-size:17px;color:var(--navy);display:flex;align-items:center;gap:9px}
-.panel-title .ic{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--gold-soft) 0%,var(--gold) 100%);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+/* ── PANEL ── */
+.panel{
+  background:var(--surface);border-radius:var(--radius-lg);
+  border:1px solid var(--border-soft);
+  padding:24px 26px;
+  box-shadow:var(--shadow-sm);margin-bottom:18px;
+}
+.panel-head{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:18px;padding-bottom:16px;
+  border-bottom:1px solid var(--border-soft);
+  gap:14px;flex-wrap:wrap;
+}
+.panel-title{
+  font-family:'Noto Serif KR';font-weight:700;
+  font-size:17px;color:var(--navy);
+  display:flex;align-items:center;gap:10px;
+}
+.panel-title .ic{
+  width:30px;height:30px;border-radius:8px;
+  background:linear-gradient(135deg,var(--gold-soft),var(--gold));
+  color:var(--navy);display:flex;align-items:center;justify-content:center;
+  font-size:15px;
+}
 
-/* ── MONTH CARDS (dashboard) ── */
-.month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-.month-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;cursor:pointer;transition:all .25s}
-.month-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--gold-soft)}
+/* ── MONTH GRID ── */
+.month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.month-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 20px;
+  cursor:pointer;transition:all .22s;
+}
+.month-card:hover{
+  transform:translateY(-3px);box-shadow:var(--shadow);
+  border-color:var(--gold-soft);
+}
 .month-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.month-num{font-family:'Noto Serif KR';font-weight:700;font-size:22px;color:var(--navy);letter-spacing:-.01em}
-.month-num span{font-size:13px;color:var(--text-muted);font-weight:400;margin-left:4px}
-.month-cnt{font-size:11.5px;color:var(--text-muted);background:var(--surface-2);padding:3px 9px;border-radius:999px}
-.month-line{display:flex;justify-content:space-between;font-size:13px;padding:5px 0}
+.month-num{font-family:'Noto Serif KR';font-weight:700;font-size:22px;color:var(--navy)}
+.month-num span{font-size:12.5px;color:var(--text-muted);font-weight:400;margin-left:3px}
+.month-cnt{
+  font-size:11px;color:var(--text-muted);
+  background:var(--surface-2);padding:3px 9px;border-radius:999px;
+  border:1px solid var(--border-soft);
+}
+.month-line{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}
 .month-line span{color:var(--text-muted)}
 .month-line b{font-weight:700;font-variant-numeric:tabular-nums}
 .month-line.inc b{color:var(--inc)}
 .month-line.exp b{color:var(--exp)}
 .month-line.bal{margin-top:8px;padding-top:10px;border-top:1px dashed var(--border)}
-.month-line.bal b{color:var(--navy);font-family:'Noto Serif KR';font-size:14.5px}
+.month-line.bal b{color:var(--navy);font-family:'Noto Serif KR';font-size:14px}
 
 /* ── CATEGORY BARS ── */
 .cat-row{display:flex;align-items:center;gap:12px;padding:8px 0}
 .cat-name{width:140px;font-size:13px;color:var(--text);font-weight:500;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cat-track{flex:1;background:var(--surface-2);border-radius:6px;height:22px;overflow:hidden;position:relative}
-.cat-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--gold-deep),var(--gold));transition:width .6s cubic-bezier(.2,.8,.2,1)}
-.cat-fill.inc{background:linear-gradient(90deg,#15803d,#22c55e)}
-.cat-fill.exp{background:linear-gradient(90deg,#b91c1c,#ef4444)}
-.cat-fill.trf{background:linear-gradient(90deg,#6b21a8,#a855f7)}
-.cat-amt{width:115px;font-size:12.5px;color:var(--text);font-weight:600;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
-.cat-pct{font-size:11px;color:var(--text-light);margin-left:5px}
+.cat-track{flex:1;background:var(--surface-2);border-radius:6px;height:20px;overflow:hidden}
+.cat-fill{height:100%;border-radius:6px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.cat-fill.inc{background:linear-gradient(90deg,var(--inc),#34d399)}
+.cat-fill.exp{background:linear-gradient(90deg,var(--exp),#f87171)}
+.cat-fill.trf{background:linear-gradient(90deg,var(--trf),#a78bfa)}
+.cat-fill{background:linear-gradient(90deg,var(--gold-deep),var(--gold))}
+.cat-amt{width:115px;font-size:12.5px;color:var(--text);font-weight:700;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
+.cat-pct{font-size:10.5px;color:var(--text-light);margin-left:4px}
 
 /* ── TX TABLE ── */
-.tx-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-.tx-toolbar select, .tx-toolbar input{padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px;color:var(--text);transition:.15s}
+.tx-toolbar{
+  display:flex;gap:8px;flex-wrap:wrap;
+  margin-bottom:16px;align-items:center;
+}
+.tx-toolbar select,.tx-toolbar input{
+  padding:9px 12px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface);
+  font-family:inherit;font-size:13px;color:var(--text);
+  transition:.15s;
+}
 .tx-toolbar input{flex:1;min-width:180px}
-.tx-toolbar select:focus, .tx-toolbar input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,169,97,.18)}
-.tx-count{font-size:12px;color:var(--text-muted);margin-left:auto;font-weight:600}
+.tx-toolbar select:focus,.tx-toolbar input:focus{
+  outline:none;border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(201,169,97,.15);
+}
+.tx-count{font-size:12px;color:var(--text-muted);margin-left:auto;font-weight:700}
 
-.tx-list{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border-soft);overflow:hidden;box-shadow:var(--shadow-sm)}
-.tx-row{display:grid;grid-template-columns:88px 1fr 110px 100px 130px;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border-soft);align-items:center;cursor:pointer;transition:background .12s}
-.tx-row:hover{background:var(--surface-2)}
+.tx-list{
+  background:var(--surface);border-radius:var(--radius);
+  border:1px solid var(--border-soft);overflow:hidden;
+  box-shadow:var(--shadow-xs);
+}
+.tx-row{
+  display:grid;grid-template-columns:88px 1fr 110px 100px 130px;
+  gap:14px;padding:14px 18px;
+  border-bottom:1px solid var(--border-soft);
+  align-items:center;cursor:pointer;transition:background .1s;
+}
+.tx-row:hover{background:var(--bg-soft)}
 .tx-row:last-child{border-bottom:none}
-.tx-date{font-size:12px;color:var(--text-muted);font-weight:600;letter-spacing:.02em}
+.tx-date{font-size:11.5px;color:var(--text-muted);font-weight:600;letter-spacing:.03em}
 .tx-date b{display:block;font-size:14px;color:var(--navy);font-family:'Noto Serif KR';font-weight:700}
 .tx-body .desc{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tx-body .meta{font-size:11.5px;color:var(--text-muted);margin-top:3px;display:flex;gap:8px;align-items:center}
-.tx-body .meta .dot{width:4px;height:4px;border-radius:50%;background:var(--text-light)}
+.tx-body .meta{font-size:11.5px;color:var(--text-muted);margin-top:2px;display:flex;gap:8px;align-items:center}
+.tx-body .meta .dot{width:3px;height:3px;border-radius:50%;background:var(--text-light)}
 .tx-method{font-size:12px;color:var(--text-muted);text-align:right}
 .tx-user{font-size:12px;font-weight:600;color:var(--navy);text-align:right}
 .tx-amt{font-size:14.5px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;font-family:'Noto Serif KR'}
 .tx-amt.inc{color:var(--inc)}
 .tx-amt.exp{color:var(--exp)}
 .tx-amt.trf{color:var(--trf)}
-.type-tag{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10.5px;font-weight:700;letter-spacing:.02em}
+.type-tag{
+  display:inline-block;padding:2px 7px;border-radius:5px;
+  font-size:10px;font-weight:700;letter-spacing:.02em;
+}
 .type-tag.inc{background:var(--inc-soft);color:var(--inc)}
 .type-tag.exp{background:var(--exp-soft);color:var(--exp)}
 .type-tag.trf{background:var(--trf-soft);color:var(--trf)}
 
-@media(max-width:760px){
+@media(max-width:768px){
   .tx-row{grid-template-columns:62px 1fr auto;gap:10px;padding:12px 14px}
-  .tx-method, .tx-user{display:none}
-  .tx-body .meta{flex-wrap:wrap}
-  .tx-body .meta::after{content:attr(data-extra);display:inline}
+  .tx-method,.tx-user{display:none}
 }
 
 /* ── PAGINATION ── */
 .pages{display:flex;gap:6px;justify-content:center;margin-top:16px;flex-wrap:wrap}
-.pg-btn{padding:8px 13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-muted);transition:.15s;min-width:38px}
-.pg-btn:hover{border-color:var(--gold)}
+.pg-btn{
+  padding:7px 13px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface);
+  font-family:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;color:var(--text-muted);transition:.15s;min-width:38px;
+}
+.pg-btn:hover{border-color:var(--gold);color:var(--navy)}
 .pg-btn.active{background:var(--navy);color:var(--gold);border-color:var(--navy)}
 .pg-btn:disabled{opacity:.4;cursor:default}
 
 /* ── MEMBER CARDS ── */
 .mem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
-.mem-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border-soft);padding:24px 26px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
-.mem-card::before{content:"";position:absolute;top:-30%;right:-20%;width:180px;height:180px;background:radial-gradient(circle,rgba(201,169,97,.14) 0%,transparent 70%);filter:blur(8px)}
-.mem-card h3{font-family:'Noto Serif KR';font-size:20px;color:var(--navy);margin-bottom:6px;position:relative}
-.mem-card .mem-cnt{font-size:11.5px;color:var(--gold-deep);font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-bottom:16px;position:relative}
-.mem-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px dotted var(--border);font-size:13.5px;position:relative}
-.mem-row:last-child{border-bottom:none;margin-top:6px;padding-top:14px;border-top:1px solid var(--border)}
+.mem-card{
+  background:var(--surface);border-radius:var(--radius-lg);
+  border:1px solid var(--border-soft);padding:24px 26px;
+  box-shadow:var(--shadow-sm);position:relative;overflow:hidden;
+}
+.mem-card::after{
+  content:"";position:absolute;
+  top:-40%;right:-20%;width:200px;height:200px;
+  background:radial-gradient(circle,rgba(201,169,97,.1) 0%,transparent 70%);
+  pointer-events:none;
+}
+.mem-card h3{font-family:'Noto Serif KR';font-size:20px;color:var(--navy);margin-bottom:5px}
+.mem-card .mem-cnt{
+  font-size:11px;color:var(--gold-deep);font-weight:700;
+  letter-spacing:.18em;text-transform:uppercase;margin-bottom:16px;
+}
+.mem-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:8px 0;border-bottom:1px dotted var(--border);font-size:13.5px;
+}
+.mem-row:last-child{border-bottom:none;margin-top:6px;padding-top:12px;border-top:1px solid var(--border)}
 .mem-row span{color:var(--text-muted)}
 .mem-row b{font-weight:700;font-variant-numeric:tabular-nums}
 .mem-row.inc b{color:var(--inc)}
@@ -187,56 +411,224 @@ body{
 .mem-row.bal b{color:var(--navy);font-family:'Noto Serif KR';font-size:16px}
 
 /* ── SETTINGS ── */
-.settings-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border-soft);padding:26px;margin-bottom:16px;box-shadow:var(--shadow-sm)}
-.settings-card h3{font-family:'Noto Serif KR';font-size:18px;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;gap:9px}
-.settings-card p{font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:16px}
+.settings-card{
+  background:var(--surface);border-radius:var(--radius-lg);
+  border:1px solid var(--border-soft);
+  padding:28px 28px 24px;margin-bottom:18px;
+  box-shadow:var(--shadow-sm);
+}
+.settings-card h3{
+  font-family:'Noto Serif KR';font-size:18px;color:var(--navy);
+  margin-bottom:8px;display:flex;align-items:center;gap:10px;
+}
+.settings-card p{
+  font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:18px;
+}
 .settings-actions{display:flex;flex-wrap:wrap;gap:10px}
 
-.sync-badge{display:inline-block;margin-left:8px;padding:3px 10px;border-radius:6px;font-family:'Pretendard';font-size:11px;font-weight:700;letter-spacing:.08em;vertical-align:middle}
-.sync-badge.off{background:rgba(122,45,63,.10);color:var(--burgundy)}
-.sync-badge.on{background:rgba(34,197,94,.12);color:#15803d}
-.sync-badge.syncing{background:rgba(245,158,11,.15);color:#b45309}
-.sync-steps{margin:6px 0 18px 18px;padding:0;font-size:13px;color:var(--text);line-height:1.85}
-.sync-steps li{margin-bottom:6px}
+/* ── SYNC BADGES ── */
+.sync-badge{
+  display:inline-block;margin-left:8px;
+  padding:3px 10px;border-radius:6px;
+  font-family:'Pretendard';font-size:11px;font-weight:700;
+  letter-spacing:.08em;vertical-align:middle;
+}
+.sync-badge.off{background:rgba(139,45,63,.1);color:var(--burgundy)}
+.sync-badge.on{background:var(--inc-soft);color:var(--inc)}
+.sync-badge.syncing{background:rgba(251,191,36,.15);color:#92651a}
+
+/* ── SYNC STEPS ── */
+.sync-steps{
+  margin:8px 0 20px;padding:0;
+  font-size:13px;color:var(--text);line-height:1.9;
+  list-style:none;counter-reset:steps;
+}
+.sync-steps li{
+  margin-bottom:8px;padding-left:28px;position:relative;
+  counter-increment:steps;
+}
+.sync-steps li::before{
+  content:counter(steps);
+  position:absolute;left:0;top:2px;
+  width:19px;height:19px;border-radius:50%;
+  background:var(--navy);color:var(--gold);
+  font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  line-height:1;
+}
 .sync-steps li b{color:var(--navy)}
+
 .link{color:var(--gold-deep);font-weight:700;text-decoration:underline}
 .link:hover{color:var(--navy)}
-.sync-info{background:linear-gradient(135deg,var(--surface-2) 0%,#FAF5EA 100%);border:1px solid var(--gold-soft);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px}
-.sync-info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px}
+
+/* Sync info panel */
+.sync-info{
+  background:linear-gradient(135deg,var(--gold-pale) 0%,#FFF8E8 100%);
+  border:1px solid var(--gold-soft);border-radius:var(--radius);
+  padding:16px 20px;margin-bottom:16px;
+}
+.sync-info-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;font-size:13px;
+  border-bottom:1px solid rgba(201,169,97,.2);
+}
+.sync-info-row:last-child{border-bottom:none}
 .sync-info-row span{color:var(--text-muted)}
-.sync-info-row b{color:var(--navy);font-weight:600}
-.mono{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11.5px}
-.sync-code-box{margin-bottom:14px}
-.sync-code-box label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:7px}
+.sync-info-row b{color:var(--navy);font-weight:700}
+.mono{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11px}
+
+/* Sync code box */
+.sync-code-box{margin-bottom:16px}
+.sync-code-box label{
+  display:block;font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold-deep);margin-bottom:8px;
+}
 .sync-code-row{display:flex;gap:8px}
-.sync-code-row input{flex:1;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-soft);font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis}
+.sync-code-row input{
+  flex:1;padding:11px 14px;border-radius:10px;
+  border:1px solid var(--border);background:var(--bg-soft);
+  font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11px;
+  color:var(--text);overflow:hidden;text-overflow:ellipsis;
+}
 .sync-warn{font-size:11.5px;color:var(--burgundy);margin-top:8px;font-weight:500}
 
+/* ── MOBILE SYNC CARD ── */
+.mobile-sync-card{
+  background:linear-gradient(135deg,#0D7C4A 0%,#15803d 100%);
+  border-radius:var(--radius-lg);
+  padding:24px 28px;margin-bottom:24px;
+  text-align:center;
+  box-shadow:0 8px 24px rgba(13,124,74,.25);
+}
+.mobile-sync-card p.title{
+  font-size:15px;font-weight:800;color:#fff;margin:0 0 8px;
+  letter-spacing:-.01em;
+}
+.mobile-sync-card p.sub{
+  font-size:12.5px;color:rgba(255,255,255,.75);margin:0 0 18px;
+}
+#mobileSyncBtn{
+  background:#fff;color:#0D7C4A;
+  border:none;border-radius:12px;
+  padding:14px 40px;
+  font-size:16px;font-weight:800;cursor:pointer;
+  width:100%;max-width:320px;
+  box-shadow:0 4px 16px rgba(0,0,0,.15);
+  transition:all .2s;
+  font-family:inherit;
+}
+#mobileSyncBtn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.mobile-sync-card p.hint{font-size:11px;color:rgba(255,255,255,.5);margin:10px 0 0}
+
 /* ── BUTTONS ── */
-.btn{padding:11px 22px;border-radius:11px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px}
+.btn{
+  padding:11px 22px;border-radius:11px;
+  font-family:inherit;font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:all .2s;border:1px solid transparent;
+  display:inline-flex;align-items:center;gap:7px;
+  white-space:nowrap;
+}
 .btn-primary{background:var(--navy);color:var(--gold);border-color:var(--navy)}
-.btn-primary:hover{background:var(--navy-deep);transform:translateY(-1px);box-shadow:0 6px 14px -6px rgba(20,40,73,.5)}
+.btn-primary:hover{background:var(--navy-deep);transform:translateY(-1px);box-shadow:0 6px 16px -4px rgba(15,30,53,.5)}
 .btn-ghost{background:transparent;color:var(--text-muted);border-color:var(--border)}
-.btn-ghost:hover{background:var(--surface);color:var(--text)}
+.btn-ghost:hover{background:var(--surface);color:var(--text);border-color:var(--navy)}
 .btn-danger{background:transparent;color:var(--burgundy);border-color:var(--border)}
-.btn-danger:hover{background:rgba(122,45,63,.06)}
-.btn-add{background:linear-gradient(135deg,var(--gold-deep),var(--gold));color:#fff;border:none}
-.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 14px -6px rgba(168,137,61,.6)}
+.btn-danger:hover{background:rgba(139,45,63,.06)}
+.btn-add{
+  background:linear-gradient(135deg,var(--gold-deep),var(--gold));
+  color:#fff;border:none;
+}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 16px -4px rgba(168,137,61,.55)}
 
 /* FAB */
-.fab{position:fixed;bottom:24px;right:24px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--gold-deep),var(--gold));color:#fff;border:none;font-size:26px;cursor:pointer;box-shadow:0 12px 28px -8px rgba(168,137,61,.6);z-index:30;font-weight:700;transition:all .2s}
-.fab:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 16px 32px -8px rgba(168,137,61,.7)}
+.fab{
+  position:fixed;bottom:28px;right:28px;
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold-deep),var(--gold));
+  color:#fff;border:none;font-size:26px;cursor:pointer;
+  box-shadow:0 8px 24px rgba(168,137,61,.5);
+  z-index:30;font-weight:700;transition:all .2s;
+}
+.fab:hover{transform:translateY(-3px) scale(1.06);box-shadow:0 14px 32px rgba(168,137,61,.6)}
 
 /* ── MODAL ── */
-.modal-bg{display:none;position:fixed;inset:0;z-index:100;background:rgba(20,40,73,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:18px;animation:fadeIn .2s}
+.modal-bg{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(10,20,40,.5);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;
+  padding:20px;animation:fadeIn .2s;
+}
 .modal-bg.active{display:flex}
-.bal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
-.bal-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.modal{
+  background:var(--surface);border-radius:var(--radius-xl);
+  width:100%;max-width:540px;max-height:90vh;overflow:auto;
+  box-shadow:var(--shadow-lg);animation:slideUp .28s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+.modal-header{
+  padding:24px 28px;border-bottom:1px solid var(--border-soft);
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:14px;position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.modal-title{font-family:'Noto Serif KR';font-size:18px;font-weight:700;color:var(--navy);line-height:1.3}
+.modal-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
+.modal-close{
+  width:32px;height:32px;border-radius:9px;border:none;
+  background:var(--surface-2);cursor:pointer;font-size:18px;
+  color:var(--text-muted);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .2s;
+}
+.modal-close:hover{background:var(--navy);color:var(--gold)}
+.modal-body{padding:24px 28px}
+.field{margin-bottom:14px}
+.field label{
+  display:block;font-size:11px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold-deep);margin-bottom:7px;
+}
+.field input,.field textarea,.field select{
+  width:100%;padding:11px 14px;border-radius:10px;
+  border:1px solid var(--border);background:var(--bg-soft);
+  font-family:inherit;font-size:14px;color:var(--text);
+  line-height:1.6;transition:all .2s;
+}
+.field input:focus,.field textarea:focus,.field select:focus{
+  outline:none;border-color:var(--gold);background:#fff;
+  box-shadow:0 0 0 3px rgba(201,169,97,.15);
+}
+.field textarea{min-height:60px;resize:vertical}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.type-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.type-btn{
+  padding:11px;border-radius:10px;
+  border:1.5px solid var(--border);background:var(--bg-soft);
+  font-family:inherit;font-size:13.5px;font-weight:700;
+  cursor:pointer;transition:.18s;color:var(--text-muted);
+}
+.type-btn.inc.active{background:var(--inc-soft);border-color:var(--inc);color:var(--inc)}
+.type-btn.exp.active{background:var(--exp-soft);border-color:var(--exp);color:var(--exp)}
+.type-btn.trf.active{background:var(--trf-soft);border-color:var(--trf);color:var(--trf)}
+.modal-foot{
+  padding:18px 28px;border-top:1px solid var(--border-soft);
+  display:flex;gap:10px;justify-content:space-between;
+  background:var(--surface-2);position:sticky;bottom:0;
+  border-radius:0 0 var(--radius-xl) var(--radius-xl);
+}
+.modal-foot-left{display:flex;gap:10px}
+.modal-foot-right{display:flex;gap:10px}
+
+/* Analysis modal */
+.bal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.bal-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;
+}
 .bal-acct{font-weight:700;color:var(--navy)}
-.bal-method{font-size:11.5px;color:var(--text-muted);margin:2px 0 8px}
+.bal-method{font-size:11.5px;color:var(--text-muted);margin:3px 0 10px}
 .bal-real{font-size:13px}.bal-real b{color:var(--navy)}
-.bal-net{font-size:12.5px;margin-top:4px}
-.bal-net.pos{color:#1a7f4b}.bal-net.neg{color:#c0392b}
+.bal-net{font-size:12.5px;margin-top:5px}
+.bal-net.pos{color:var(--inc)}.bal-net.neg{color:var(--exp)}
 .analysis-btns{display:flex;gap:12px;flex-wrap:wrap}
 .analysis-btns .btn{flex:1;min-width:160px;padding:15px 16px}
 .an-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -250,60 +642,59 @@ body{
 .an-group{margin-bottom:24px}
 .an-group-title{font-size:13px;font-weight:700;color:var(--navy);background:var(--gold-soft);padding:7px 12px;border-radius:8px;margin-bottom:10px}
 .an-table tr.subtotal td{font-weight:700;background:var(--bg-soft);border-top:2px solid var(--border);color:var(--navy)}
-.an-table td.pos{color:var(--inc)}
-.an-table td.neg{color:var(--exp)}
+.an-table td.pos{color:var(--inc)}.an-table td.neg{color:var(--exp)}
 .an-table td.tot.pos{color:var(--inc);font-weight:700}
 .an-table td.tot.neg{color:var(--exp);font-weight:700}
 .bal-input{padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right}
-.modal{background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:540px;max-height:90vh;overflow:auto;box-shadow:var(--shadow-lg);animation:slideUp .3s cubic-bezier(.2,.8,.2,1)}
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
-.modal-header{padding:22px 26px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;background:var(--surface);z-index:1}
-.modal-title{font-family:'Noto Serif KR';font-size:18px;font-weight:700;color:var(--navy);line-height:1.3}
-.modal-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
-.modal-close{width:34px;height:34px;border-radius:10px;border:none;background:var(--surface-2);cursor:pointer;font-size:18px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
-.modal-close:hover{background:var(--navy);color:var(--gold)}
-.modal-body{padding:22px 26px}
-.field{margin-bottom:14px}
-.field label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:7px}
-.field input,.field textarea,.field select{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-soft);font-family:inherit;font-size:14px;color:var(--text);line-height:1.6;transition:all .2s}
-.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(201,169,97,.18)}
-.field textarea{min-height:60px;resize:vertical}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.type-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.type-btn{padding:11px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg-soft);font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;transition:.18s;color:var(--text-muted)}
-.type-btn.inc.active{background:var(--inc-soft);border-color:var(--inc);color:var(--inc)}
-.type-btn.exp.active{background:var(--exp-soft);border-color:var(--exp);color:var(--exp)}
-.type-btn.trf.active{background:var(--trf-soft);border-color:var(--trf);color:var(--trf)}
-.modal-foot{padding:18px 26px;border-top:1px solid var(--border-soft);display:flex;gap:10px;justify-content:space-between;background:var(--surface-2);position:sticky;bottom:0}
-.modal-foot-left{display:flex;gap:10px}
-.modal-foot-right{display:flex;gap:10px}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 22px;border-radius:11px;font-size:13.5px;font-weight:500;letter-spacing:.01em;box-shadow:0 12px 28px -8px rgba(20,40,73,.5);z-index:200;opacity:0;transition:all .3s;pointer-events:none}
+.toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:var(--navy);color:#fff;
+  padding:12px 22px;border-radius:12px;
+  font-size:13.5px;font-weight:500;letter-spacing:.01em;
+  box-shadow:0 12px 32px -8px rgba(10,20,50,.4);
+  z-index:200;opacity:0;transition:all .3s;pointer-events:none;
+  white-space:nowrap;
+}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
-.toast.ok{background:linear-gradient(135deg,#15803d,#166534)}
+.toast.ok{background:linear-gradient(135deg,var(--inc),#166534)}
 .toast.err{background:linear-gradient(135deg,var(--burgundy),#5a1f2d)}
 
 .empty{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:14px}
 
 /* ── INPUT METHODS ── */
-.input-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-bottom:24px}
-.input-method-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius-lg);padding:28px 26px;text-align:left;cursor:pointer;transition:all .25s cubic-bezier(.2,.8,.2,1);box-shadow:var(--shadow-sm);font-family:inherit;color:var(--text);position:relative;overflow:hidden}
+.input-methods{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:18px;margin-bottom:24px;
+}
+.input-method-card{
+  background:var(--surface);border:1px solid var(--border-soft);
+  border-radius:var(--radius-lg);padding:28px 26px;
+  text-align:left;cursor:pointer;
+  transition:all .25s cubic-bezier(.2,.8,.2,1);
+  box-shadow:var(--shadow-sm);font-family:inherit;
+  color:var(--text);position:relative;overflow:hidden;
+}
 .input-method-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--gold-soft)}
-.input-method-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-deep),var(--gold))}
-.im-ico{font-size:42px;margin-bottom:14px}
-.input-method-card h3{font-family:'Noto Serif KR';font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px}
+.input-method-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3.5px;
+  background:linear-gradient(90deg,var(--gold-deep),var(--gold));
+}
+.im-ico{font-size:40px;margin-bottom:14px}
+.input-method-card h3{
+  font-family:'Noto Serif KR';font-size:20px;font-weight:700;
+  color:var(--navy);margin-bottom:8px;
+}
 .input-method-card p{font-size:13px;color:var(--text-muted);line-height:1.65;margin-bottom:18px}
-.im-cta{font-size:13px;color:var(--navy);font-weight:700;letter-spacing:.02em}
+.im-cta{font-size:13px;color:var(--navy);font-weight:700}
 
 /* ── EXCEL PREVIEW ── */
 .excel-mapping{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
-.excel-mapping label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:5px}
-.excel-mapping select{width:100%;padding:8px 11px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px}
+.excel-mapping label,.excel-defaults label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:5px}
+.excel-mapping select,.excel-defaults select{width:100%;padding:8px 11px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px}
 .excel-defaults{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
-.excel-defaults select{padding:8px 11px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:13px}
-.excel-defaults > div{display:flex;flex-direction:column;gap:5px}
-.excel-defaults label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.excel-defaults>div{display:flex;flex-direction:column;gap:5px}
 .excel-preview-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
 .excel-preview-table th{background:var(--navy);color:var(--gold);padding:9px 11px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.08em;white-space:nowrap}
 .excel-preview-table th:first-child{border-radius:8px 0 0 0}
@@ -316,7 +707,12 @@ body{
 /* ── SCAN ── */
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 @media(max-width:900px){.scan-grid{grid-template-columns:1fr}}
-.scan-image-wrap{background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;min-height:300px;max-height:80vh;position:sticky;top:120px}
+.scan-image-wrap{
+  background:var(--surface-2);border-radius:var(--radius);
+  border:1px solid var(--border);overflow:hidden;
+  display:flex;flex-direction:column;min-height:300px;max-height:80vh;
+  position:sticky;top:120px;
+}
 .scan-image-wrap img{max-width:100%;max-height:60vh;object-fit:contain;display:block;margin:auto;background:#0a0a0a}
 .scan-image-wrap img.rotated-90{transform:rotate(90deg)}
 .scan-image-wrap img.rotated-180{transform:rotate(180deg)}
@@ -324,386 +720,400 @@ body{
 .scan-tools{display:flex;gap:6px;padding:10px;background:var(--surface);border-top:1px solid var(--border);flex-wrap:wrap;justify-content:center}
 .scan-tools .btn{padding:8px 14px;font-size:12.5px}
 .scan-form h4{font-family:'Noto Serif KR';font-size:17px;color:var(--navy);margin-bottom:6px}
-.scan-form > p{font-size:12.5px;color:var(--text-muted);line-height:1.65;margin-bottom:18px}
+.scan-form>p{font-size:12.5px;color:var(--text-muted);line-height:1.65;margin-bottom:18px}
 #scanRecentList{margin-top:16px;padding-top:14px;border-top:1px dashed var(--border)}
 .scan-recent-item{font-size:12.5px;padding:6px 0;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center}
 .scan-recent-item b{color:var(--text);font-weight:600}
 .scan-recent-head{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:8px}
 
-.footer{padding:30px 22px 100px;text-align:center}
+/* ── FOOTER ── */
+.footer{padding:32px 24px 100px;text-align:center}
 .footer-mark{font-family:'Noto Serif KR';color:var(--navy);font-weight:600;font-size:14px;letter-spacing:.02em}
-.footer-sub{font-size:11.5px;color:var(--text-light);margin-top:6px;letter-spacing:.06em}
+.footer-sub{font-size:11px;color:var(--text-light);margin-top:6px;letter-spacing:.1em}
 
 input[type="file"]{display:none}
 
+/* ── RESPONSIVE ── */
 @media(max-width:600px){
-  .hero{padding-top:28px}
-  .section{padding:22px 16px}
-  .panel{padding:20px 18px}
-  .top-actions .sync-pill{display:none}
-  .topbar{padding:12px 16px}
-  .nav-tabs{padding:10px 16px 0}
-  .nav-tab{padding:9px 12px;font-size:12.5px}
-  .brand-sub{display:none}
-  .modal{max-width:100%;border-radius:var(--radius-lg) var(--radius-lg) 0 0;max-height:92vh}
+  .hero{padding-top:24px}
+  .section{padding:18px 16px}
+  .panel{padding:18px 16px}
+  .topbar{padding:0 16px}
+  .topbar-inner{height:52px}
+  .nav-tabs{padding:8px 12px}
+  .nav-tab{padding:7px 12px;font-size:12px}
+  .brand-sub,.top-actions .sync-pill{display:none}
+  .modal{max-width:100%;border-radius:var(--radius-xl) var(--radius-xl) 0 0;max-height:92vh}
   .modal-bg{align-items:flex-end;padding:0}
+  .modal-foot{border-radius:0}
+  .kpis{padding:4px 16px 24px}
+  .month-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
 }
 </style>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="topbar-inner">
-    <div class="brand">
-      <div class="brand-mark">유</div>
-      <div class="brand-text">
-        <div class="brand-title">유앤김 패밀리 가계부</div>
-        <div class="brand-sub">2026 Family Ledger</div>
-      </div>
-    </div>
-    <div class="top-actions">
-      <div class="sync-pill" id="syncPill"><span class="sync-dot" id="syncDot"></span><span id="syncText">자동 저장됨</span></div>
-      <button class="icon-btn" id="settingsBtn" title="설정·동기화" aria-label="설정">⚙</button>
+<div class="topbar-inner">
+  <div class="brand">
+    <div class="brand-mark">유</div>
+    <div class="brand-text">
+      <div class="brand-title">유앤김 패밀리 가계부</div>
+      <div class="brand-sub">2026 Family Ledger</div>
     </div>
   </div>
-  <nav class="nav-tabs">
-    <button class="nav-tab active" data-view="dash"><span class="ico">📊</span>대시보드</button>
-    <button class="nav-tab" data-view="monthly"><span class="ico">📅</span>월별</button>
-    <button class="nav-tab" data-view="txlist"><span class="ico">📋</span>거래내역</button>
-    <button class="nav-tab" data-view="balances"><span class="ico">🏦</span>월말잔고</button>
-    <button class="nav-tab" data-view="cardspend"><span class="ico">💳</span>카드지출</button>
-    <button class="nav-tab" data-view="dividend"><span class="ico">💰</span>배당금</button>
-    <button class="nav-tab" data-view="golf"><span class="ico">⛳</span>골프비용</button>
-    <button class="nav-tab" data-view="category"><span class="ico">🏷</span>카테고리</button>
-    <button class="nav-tab" data-view="member"><span class="ico">👥</span>구성원별</button>
-    <button class="nav-tab" data-view="input"><span class="ico">➕</span>입력·업로드</button>
-    <button class="nav-tab" data-view="settings"><span class="ico">⚙</span>설정·동기화</button>
-  </nav>
+  <div class="top-actions">
+    <div class="sync-pill" id="syncPill">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncText">자동 저장됨</span>
+    </div>
+    <button class="icon-btn" id="settingsBtn" title="설정·동기화" aria-label="설정">⚙</button>
+  </div>
+</div>
 </header>
+
+<div class="nav-bar">
+<nav class="nav-tabs">
+  <button class="nav-tab active" data-view="dash"><span class="ico">📊</span>대시보드</button>
+  <button class="nav-tab" data-view="monthly"><span class="ico">📅</span>월별</button>
+  <button class="nav-tab" data-view="txlist"><span class="ico">📋</span>거래내역</button>
+  <button class="nav-tab" data-view="balances"><span class="ico">🏦</span>월말잔고</button>
+  <button class="nav-tab" data-view="cardspend"><span class="ico">💳</span>카드지출</button>
+  <button class="nav-tab" data-view="dividend"><span class="ico">💰</span>배당금</button>
+  <button class="nav-tab" data-view="golf"><span class="ico">⛳</span>골프비용</button>
+  <button class="nav-tab" data-view="category"><span class="ico">🏷</span>카테고리</button>
+  <button class="nav-tab" data-view="member"><span class="ico">👥</span>구성원별</button>
+  <button class="nav-tab" data-view="input"><span class="ico">➕</span>입력·업로드</button>
+  <button class="nav-tab" data-view="settings"><span class="ico">⚙</span>설정·동기화</button>
+</nav>
+</div>
 
 <main>
 
 <!-- ===== DASHBOARD ===== -->
 <section class="view active" id="view-dash">
-  <div class="hero">
-    <div class="hero-eyebrow">2026 패밀리 가계부 · 마스터 대시보드</div>
-    <h1 class="serif">유앤김 <span class="accent">가계부</span></h1>
-    <p class="hero-lede">유재진·김희연·현금 — 3계좌 통합 관리. 매월 수입·지출·이체 자동 집계, 카테고리·구성원별 상세 분석. 럭셔리하고 우아한 패밀리 재정 큐레이션.</p>
-    <div class="hero-meta">
-      <span>업데이트 <b id="updatedDate">2026-07-01</b></span>
-      <span>거래 <b id="totalCnt">1051</b>건</span>
-      <span>기간 <b id="periodText">2026-01 ~ 06</b></span>
-    </div>
+<div class="hero">
+  <div class="hero-eyebrow">2026 패밀리 가계부 · 마스터 대시보드</div>
+  <h1 class="serif">유앤김 <span class="accent">가계부</span></h1>
+  <p class="hero-lede">유재진·김희연·현금 — 3계좌 통합 관리. 매월 수입·지출·이체 자동 집계, 카테고리·구성원별 상세 분석. 럭셔리하고 우아한 패밀리 재정 큐레이션.</p>
+  <div class="hero-meta">
+    <span>업데이트 <b id="updatedDate">2026-07-01</b></span>
+    <span>거래 <b id="totalCnt">1051</b>건</span>
+    <span>기간 <b id="periodText">2026-01 ~ 06</b></span>
   </div>
+</div>
 
-  <div class="kpis">
-    <div class="kpi inc"><div class="kpi-label">총 수입</div><div class="kpi-value" id="kpiInc">-</div><div class="kpi-sub">올해 누적</div></div>
-    <div class="kpi exp"><div class="kpi-label">총 지출</div><div class="kpi-value" id="kpiExp">-</div><div class="kpi-sub">올해 누적</div></div>
-    <div class="kpi bal"><div class="kpi-label">순익 (수입-지출)</div><div class="kpi-value" id="kpiBal">-</div><div class="kpi-sub">저축 가능 금액</div></div>
-    <div class="kpi cnt"><div class="kpi-label">거래 건수</div><div class="kpi-value" id="kpiCnt">-</div><div class="kpi-sub">전체 등록</div></div>
-  </div>
+<div class="kpis">
+  <div class="kpi inc"><div class="kpi-accent"></div><div class="kpi-label">총 수입</div><div class="kpi-value" id="kpiInc">-</div><div class="kpi-sub">올해 누적</div></div>
+  <div class="kpi exp"><div class="kpi-accent"></div><div class="kpi-label">총 지출</div><div class="kpi-value" id="kpiExp">-</div><div class="kpi-sub">올해 누적</div></div>
+  <div class="kpi bal"><div class="kpi-accent"></div><div class="kpi-label">순익 (수입-지출)</div><div class="kpi-value" id="kpiBal">-</div><div class="kpi-sub">저축 가능 금액</div></div>
+  <div class="kpi cnt"><div class="kpi-accent"></div><div class="kpi-label">거래 건수</div><div class="kpi-value" id="kpiCnt">-</div><div class="kpi-sub">전체 등록</div></div>
+</div>
 
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">월별 추이<span class="badge">MONTHLY</span></h2><div class="section-desc">월별 수입·지출·순익 한눈에</div></div></div>
-    <div class="month-grid" id="dashMonthGrid"></div>
-  </div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">월별 추이<span class="badge">MONTHLY</span></h2><div class="section-desc">월별 수입·지출·순익 한눈에</div></div></div>
+  <div class="month-grid" id="dashMonthGrid"></div>
+</div>
 
-  
-
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">지출 TOP 8 카테고리</h2><div class="section-desc">가장 많이 지출한 카테고리 순</div></div></div>
-    <div class="panel"><div id="dashTopCats"></div></div>
-  </div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">지출 TOP 8 카테고리</h2><div class="section-desc">가장 많이 지출한 카테고리 순</div></div></div>
+  <div class="panel"><div id="dashTopCats"></div></div>
+</div>
 </section>
 
 <div class="modal-bg" id="analysisModal">
-  <div class="modal" role="dialog" aria-modal="true">
-    <div class="modal-header">
-      <div><div class="modal-title" id="analysisTitle"></div></div>
-      <button class="modal-close" id="analysisClose" aria-label="닫기">×</button>
-    </div>
-    <div class="modal-body" id="analysisBody"></div>
+<div class="modal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div><div class="modal-title" id="analysisTitle"></div></div>
+    <button class="modal-close" id="analysisClose" aria-label="닫기">×</button>
   </div>
+  <div class="modal-body" id="analysisBody"></div>
+</div>
 </div>
 
 <!-- ===== MONTHLY ===== -->
 <section class="view" id="view-monthly">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">월별 현황</h2><div class="section-desc">월별 상세 수입·지출 분석</div></div></div>
-    <div id="monthlyContainer"></div>
-  </div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">월별 현황</h2><div class="section-desc">월별 상세 수입·지출 분석</div></div></div>
+  <div id="monthlyContainer"></div>
+</div>
 </section>
 
 <!-- ===== TX LIST ===== -->
 <section class="view" id="view-txlist">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">거래내역</h2><div class="section-desc">전체 거래 · 필터 · 검색</div></div></div>
-
-    <div class="panel">
-      <div class="tx-toolbar">
-        <select id="txFilterMonth"><option value="all">전체 월</option></select>
-        <select id="txFilterType">
-          <option value="all">전체 유형</option>
-          <option value="수입">수입</option>
-          <option value="지출">지출</option>
-          <option value="이체">이체</option>
-        </select>
-        <select id="txFilterUser"><option value="all">전체 구성원</option></select>
-        <select id="txFilterCat"><option value="all">전체 카테고리</option></select>
-        <input type="text" id="txFilterText" placeholder="설명·메모 검색…">
-        <div class="tx-count" id="txCount">-</div>
-      </div>
-      <div class="tx-list" id="txListBody"></div>
-      <div class="pages" id="txPages"></div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">거래내역</h2><div class="section-desc">전체 거래 · 필터 · 검색</div></div></div>
+  <div class="panel">
+    <div class="tx-toolbar">
+      <select id="txFilterMonth"><option value="all">전체 월</option></select>
+      <select id="txFilterType">
+        <option value="all">전체 유형</option>
+        <option value="수입">수입</option>
+        <option value="지출">지출</option>
+        <option value="이체">이체</option>
+      </select>
+      <select id="txFilterUser"><option value="all">전체 구성원</option></select>
+      <select id="txFilterCat"><option value="all">전체 카테고리</option></select>
+      <input type="text" id="txFilterText" placeholder="설명·메모 검색…">
+      <div class="tx-count" id="txCount">-</div>
     </div>
+    <div class="tx-list" id="txListBody"></div>
+    <div class="pages" id="txPages"></div>
   </div>
+</div>
 </section>
 
 <!-- ===== CATEGORY ===== -->
 <section class="view" id="view-category">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">카테고리별 분석</h2><div class="section-desc">수입·지출·이체 카테고리 합계</div></div></div>
-    <div class="panel">
-      <div class="tx-toolbar" style="margin-bottom:20px">
-        <select id="catFilterMonth"><option value="all">전체 기간</option></select>
-        <select id="catFilterType">
-          <option value="지출">지출만</option>
-          <option value="수입">수입만</option>
-          <option value="이체">이체만</option>
-          <option value="all">전체</option>
-        </select>
-      </div>
-      <div id="catList"></div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">카테고리별 분석</h2><div class="section-desc">수입·지출·이체 카테고리 합계</div></div></div>
+  <div class="panel">
+    <div class="tx-toolbar" style="margin-bottom:20px">
+      <select id="catFilterMonth"><option value="all">전체 기간</option></select>
+      <select id="catFilterType">
+        <option value="지출">지출만</option>
+        <option value="수입">수입만</option>
+        <option value="이체">이체만</option>
+        <option value="all">전체</option>
+      </select>
     </div>
+    <div id="catList"></div>
   </div>
+</div>
 </section>
 
 <!-- ===== MEMBER ===== -->
 <section class="view" id="view-member">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">구성원별 분석</h2><div class="section-desc">유재진 · 김희연 · 현금 — 각자의 수입·지출</div></div></div>
-    <div class="panel">
-      <div class="tx-toolbar" style="margin-bottom:20px">
-        <select id="memFilterMonth"><option value="all">전체 기간</option></select>
-      </div>
-      <div class="mem-grid" id="memGrid"></div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">구성원별 분석</h2><div class="section-desc">유재진 · 김희연 · 현금 — 각자의 수입·지출</div></div></div>
+  <div class="panel">
+    <div class="tx-toolbar" style="margin-bottom:20px">
+      <select id="memFilterMonth"><option value="all">전체 기간</option></select>
     </div>
+    <div class="mem-grid" id="memGrid"></div>
   </div>
+</div>
 </section>
 
-<!-- ===== INPUT (수동/엑셀/스캔) ===== -->
+<!-- ===== INPUT ===== -->
 <section class="view" id="view-input">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">매월 거래 입력</h2><div class="section-desc">3가지 방법 중 편한 방식으로 — 수동·엑셀·스캔사진</div></div></div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">매월 거래 입력</h2><div class="section-desc">3가지 방법 중 편한 방식으로 — 수동·엑셀·스캔사진</div></div></div>
 
-    <div class="input-methods">
-      <button class="input-method-card" id="imManual">
-        <div class="im-ico">✏️</div>
-        <h3>수동 입력</h3>
-        <p>거래 한 건씩 빠르게 입력. 날짜·금액·카테고리·결제수단·메모.</p>
-        <div class="im-cta">한 건 입력하기 →</div>
-      </button>
-      <button class="input-method-card" id="imExcel">
-        <div class="im-ico">📊</div>
-        <h3>엑셀 업로드</h3>
-        <p>은행·카드사 다운로드 파일(.xlsx/.csv) → 자동 인식 후 일괄 추가. 컬럼 매핑 가능.</p>
-        <div class="im-cta">엑셀 파일 선택 →</div>
-      </button>
-      <button class="input-method-card" id="imScan">
-        <div class="im-ico">📷</div>
-        <h3>스캔 사진</h3>
-        <p>영수증·통장·카드 명세서 사진을 띄워두고 옆 화면에서 보면서 직접 입력.</p>
-        <div class="im-cta">사진 업로드 →</div>
-      </button>
-    </div>
-
-    <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
-    <input type="file" id="scanFile" accept="image/*">
+  <div class="input-methods">
+    <button class="input-method-card" id="imManual">
+      <div class="im-ico">✏️</div>
+      <h3>수동 입력</h3>
+      <p>거래 한 건씩 빠르게 입력. 날짜·금액·카테고리·결제수단·메모.</p>
+      <div class="im-cta">한 건 입력하기 →</div>
+    </button>
+    <button class="input-method-card" id="imExcel">
+      <div class="im-ico">📊</div>
+      <h3>엑셀 업로드</h3>
+      <p>은행·카드사 다운로드 파일(.xlsx/.csv) → 자동 인식 후 일괄 추가. 컬럼 매핑 가능.</p>
+      <div class="im-cta">엑셀 파일 선택 →</div>
+    </button>
+    <button class="input-method-card" id="imScan">
+      <div class="im-ico">📷</div>
+      <h3>스캔 사진</h3>
+      <p>영수증·통장·카드 명세서 사진을 띄워두고 옆 화면에서 보면서 직접 입력.</p>
+      <div class="im-cta">사진 업로드 →</div>
+    </button>
   </div>
 
-  <!-- 엑셀 미리보기 영역 -->
-  <div class="section" id="excelPreviewSection" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span class="ic">📊</span>엑셀 미리보기 · 컬럼 매핑</div>
-        <div style="font-size:13px;color:var(--text-muted)" id="excelRowCount">-</div>
-      </div>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">엑셀의 각 컬럼이 어떤 항목인지 선택하세요. 자동 인식이 가능하면 미리 설정되어 있습니다. 마지막에 "전체 추가" 누르면 일괄 등록됩니다.</p>
-      <div id="excelMappingArea"></div>
-      <div id="excelDefaultsArea" style="margin:18px 0;padding:14px 16px;background:var(--surface-2);border-radius:10px"></div>
-      <div id="excelPreviewArea"></div>
-      <div class="settings-actions" style="margin-top:18px">
-        <button class="btn btn-primary" id="btnExcelAdd">✓ 전체 추가</button>
-        <button class="btn btn-ghost" id="btnExcelCancel">취소</button>
-      </div>
+  <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+  <input type="file" id="scanFile" accept="image/*">
+</div>
+
+<!-- 엑셀 미리보기 -->
+<div class="section" id="excelPreviewSection" style="display:none">
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title"><span class="ic">📊</span>엑셀 미리보기 · 컬럼 매핑</div>
+      <div style="font-size:13px;color:var(--text-muted)" id="excelRowCount">-</div>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">엑셀의 각 컬럼이 어떤 항목인지 선택하세요. 자동 인식이 가능하면 미리 설정되어 있습니다. 마지막에 "전체 추가" 누르면 일괄 등록됩니다.</p>
+    <div id="excelMappingArea"></div>
+    <div id="excelDefaultsArea" style="margin:18px 0;padding:14px 16px;background:var(--surface-2);border-radius:10px"></div>
+    <div id="excelPreviewArea"></div>
+    <div class="settings-actions" style="margin-top:18px">
+      <button class="btn btn-primary" id="btnExcelAdd">✓ 전체 추가</button>
+      <button class="btn btn-ghost" id="btnExcelCancel">취소</button>
     </div>
   </div>
+</div>
 
-  <!-- 스캔 사진 영역 -->
-  <div class="section" id="scanSection" style="display:none">
-    <div class="panel">
-      <div class="panel-head">
-        <div class="panel-title"><span class="ic">📷</span>스캔 사진</div>
-        <button class="btn btn-ghost" id="btnScanClose">닫기</button>
-      </div>
-      <div class="scan-grid">
-        <div class="scan-image-wrap">
-          <img id="scanImg" alt="스캔 이미지">
-          <div class="scan-tools">
-            <button class="btn btn-ghost" id="scanZoomIn">🔍+ 확대</button>
-            <button class="btn btn-ghost" id="scanZoomOut">🔍- 축소</button>
-            <button class="btn btn-ghost" id="scanRotate">↻ 회전</button>
-            <button class="btn btn-primary" id="btnScanReplace">다른 사진</button>
-          </div>
-        </div>
-        <div class="scan-form">
-          <h4>사진을 보며 입력</h4>
-          <p>한 건씩 입력 후 "이 건 추가" — 사진은 계속 떠있어서 여러 건을 연속 입력할 수 있습니다.</p>
-          <div class="type-picker" id="scanTypePicker">
-            <button class="type-btn inc" data-type="수입">＋ 수입</button>
-            <button class="type-btn exp active" data-type="지출">－ 지출</button>
-            <button class="type-btn trf" data-type="이체">⇄ 이체</button>
-          </div>
-          <div class="field-row">
-            <div class="field"><label>날짜</label><input type="date" id="sDate"></div>
-            <div class="field"><label>금액</label><input type="text" id="sAmount" inputmode="numeric" placeholder="0"></div>
-          </div>
-          <div class="field-row">
-            <div class="field"><label>구성원</label><select id="sUser"></select></div>
-            <div class="field"><label>카테고리</label><select id="sCat"></select></div>
-          </div>
-          <div class="field"><label>결제수단</label><select id="sMethod"></select></div>
-          <div class="field"><label>설명</label><input type="text" id="sDesc" placeholder="예: 신한카드 결제"></div>
-          <div class="field"><label>메모 (선택)</label><input type="text" id="sMemo"></div>
-          <button class="btn btn-add" id="btnScanAdd" style="width:100%;justify-content:center;padding:14px">＋ 이 건 추가하기</button>
-          <div id="scanRecentList"></div>
+<!-- 스캔 사진 -->
+<div class="section" id="scanSection" style="display:none">
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title"><span class="ic">📷</span>스캔 사진</div>
+      <button class="btn btn-ghost" id="btnScanClose">닫기</button>
+    </div>
+    <div class="scan-grid">
+      <div class="scan-image-wrap">
+        <img id="scanImg" alt="스캔 이미지">
+        <div class="scan-tools">
+          <button class="btn btn-ghost" id="scanZoomIn">🔍+ 확대</button>
+          <button class="btn btn-ghost" id="scanZoomOut">🔍- 축소</button>
+          <button class="btn btn-ghost" id="scanRotate">↻ 회전</button>
+          <button class="btn btn-primary" id="btnScanReplace">다른 사진</button>
         </div>
       </div>
+      <div class="scan-form">
+        <h4>사진을 보며 입력</h4>
+        <p>한 건씩 입력 후 "이 건 추가" — 사진은 계속 떠있어서 여러 건을 연속 입력할 수 있습니다.</p>
+        <div class="type-picker" id="scanTypePicker">
+          <button class="type-btn inc" data-type="수입">＋ 수입</button>
+          <button class="type-btn exp active" data-type="지출">－ 지출</button>
+          <button class="type-btn trf" data-type="이체">⇄ 이체</button>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>날짜</label><input type="date" id="sDate"></div>
+          <div class="field"><label>금액</label><input type="text" id="sAmount" inputmode="numeric" placeholder="0"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>구성원</label><select id="sUser"></select></div>
+          <div class="field"><label>카테고리</label><select id="sCat"></select></div>
+        </div>
+        <div class="field"><label>결제수단</label><select id="sMethod"></select></div>
+        <div class="field"><label>설명</label><input type="text" id="sDesc" placeholder="예: 신한카드 결제"></div>
+        <div class="field"><label>메모 (선택)</label><input type="text" id="sMemo"></div>
+        <button class="btn btn-add" id="btnScanAdd" style="width:100%;justify-content:center;padding:14px">＋ 이 건 추가하기</button>
+        <div id="scanRecentList"></div>
+      </div>
     </div>
   </div>
+</div>
+</section>
+
+<!-- ===== BALANCES ===== -->
+<section class="view" id="view-balances">
+<div class="section">
+  <div class="section-head">
+    <div><h2 class="section-title">🏦 통장별 월말 잔고</h2><div class="section-desc">통장별 잔고 및 순증감</div></div>
+    <button class="btn btn-primary" style="font-size:.85rem;padding:8px 16px" id="btnEditBalancesV">✏️ 잔고 직접 입력</button>
+  </div>
+  <div class="panel" id="viewBalancesBody"><div class="empty">데이터 없음</div></div>
+</div>
+</section>
+
+<!-- ===== CARD SPEND ===== -->
+<section class="view" id="view-cardspend">
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">💳 월별 카드 지출내역</h2><div class="section-desc">카드별 × 월별 지출 합계</div></div></div>
+  <div class="panel" id="viewCardSpendBody"><div class="empty">데이터 없음</div></div>
+</div>
+</section>
+
+<!-- ===== DIVIDEND ===== -->
+<section class="view" id="view-dividend">
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">💰 인별 배당금 지급현황</h2><div class="section-desc">대상자별 배당·분배금 현황</div></div></div>
+  <div class="panel" id="viewDividendBody"><div class="empty">데이터 없음</div></div>
+</div>
+</section>
+
+<!-- ===== GOLF ===== -->
+<section class="view" id="view-golf">
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">⛳ 골프 관련 비용</h2><div class="section-desc">골프·캐디 관련 전체 내역</div></div></div>
+  <div class="panel" id="viewGolfBody"><div class="empty">데이터 없음</div></div>
+</div>
 </section>
 
 <!-- ===== SETTINGS ===== -->
-
-<section class="view" id="view-balances">
-  <div class="section">
-    <div class="section-head">
-      <div><h2 class="section-title">🏦 통장별 월말 잔고</h2><div class="section-desc">통장별 잔고 및 순증감</div></div>
-      <button class="btn btn-primary" style="font-size:.85rem;padding:8px 16px" id="btnEditBalancesV">✏️ 잔고 직접 입력</button>
-    </div>
-    <div class="panel" id="viewBalancesBody"><div class="empty">데이터 없음</div></div>
-  </div>
-</section>
-
-<section class="view" id="view-cardspend">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">💳 월별 카드 지출내역</h2><div class="section-desc">카드별 × 월별 지출 합계</div></div></div>
-    <div class="panel" id="viewCardSpendBody"><div class="empty">데이터 없음</div></div>
-  </div>
-</section>
-
-<section class="view" id="view-dividend">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">💰 인별 배당금 지급현황</h2><div class="section-desc">대상자별 배당·분배금 현황</div></div></div>
-    <div class="panel" id="viewDividendBody"><div class="empty">데이터 없음</div></div>
-  </div>
-</section>
-
-<section class="view" id="view-golf">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">⛳ 골프 관련 비용</h2><div class="section-desc">골프·캐디 관련 전체 내역</div></div></div>
-    <div class="panel" id="viewGolfBody"><div class="empty">데이터 없음</div></div>
-  </div>
-</section>
-
 <section class="view" id="view-settings">
-  <div class="section">
-    <div class="section-head"><div><h2 class="section-title">설정 · 동기화 · 백업</h2><div class="section-desc">기기 간 자동 연동과 백업·복원</div></div></div>
+<div class="section">
+  <div class="section-head"><div><h2 class="section-title">설정 · 동기화 · 백업</h2><div class="section-desc">기기 간 자동 연동과 백업·복원</div></div></div>
 
-    <div class="settings-card" id="cloudSyncCard">
-      <h3>☁️ 자동 클라우드 동기화 <span id="syncStateBadge" class="sync-badge off">OFF</span></h3>
-      <p>한 기기에서 거래를 추가/수정하면 <b>5초 이내</b>에 모든 기기에 자동 반영됩니다. 비공개 GitHub Gist에 자동 저장. 한 번만 셋업하면 됩니다.</p>
+  <!-- 자동 클라우드 동기화 -->
+  <div class="settings-card" id="cloudSyncCard">
+    <h3>☁️ 자동 클라우드 동기화 <span id="syncStateBadge" class="sync-badge off">OFF</span></h3>
+    <p>한 기기에서 거래를 추가/수정하면 <b>5초 이내</b>에 모든 기기에 자동 반영됩니다. 비공개 GitHub Gist에 자동 저장. 한 번만 셋업하면 됩니다.</p>
 
-
-      <!-- ===== 📱 모바일 클라우드 동기화 버튼 ===== -->
-      <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:16px;padding:24px;margin-bottom:28px;text-align:center;">
-        <p style="font-size:15px;font-weight:700;color:#166534;margin:0 0 12px;">📱 이 기기에 최신 데이터 동기화</p>
-        <p style="font-size:13px;color:#4b7c5c;margin:0 0 16px;">PC에서 입력한 데이터를 이 기기에 즉시 반영합니다</p>
-        <button id="mobileSyncBtn" onclick="mobileSyncFromGist()"
-          style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:16px 48px;font-size:18px;font-weight:800;cursor:pointer;width:100%;max-width:360px;letter-spacing:0.5px;box-shadow:0 4px 20px rgba(34,197,94,0.35);">
-          📱 클라우드 동기화
-        </button>
-        <p style="font-size:11px;color:#888;margin:10px 0 0;">누를 때마다 최신 데이터를 불러옵니다</p>
-      </div>
-      <!-- ===== 끝 ===== -->
-      <div id="syncStep1">
-        <ol class="sync-steps">
-          <li><b>GitHub Token 발급:</b> <a href="https://github.com/settings/tokens/new?scopes=gist&description=Yukim+Ledger+Sync" target="_blank" rel="noopener" class="link">GitHub Token 발급 페이지 열기</a> → 만료일 "No expiration" → <b>"Generate token"</b> → 발급된 토큰 복사 (<b>ghp_</b>로 시작)</li>
-          <li>아래에 토큰 붙여넣기 후 "동기화 시작" 클릭 → 자동으로 비공개 Gist 생성 + 동기화 시작</li>
-          <li>다른 기기에서는 발급된 <b>동기화 코드</b>를 붙여넣기만 하면 즉시 같은 데이터 사용</li>
-        </ol>
-        <div class="field"><label>GitHub Personal Access Token</label>
-          <input type="password" id="ghToken" placeholder="ghp_..." autocomplete="off">
-        </div>
-        <div class="field"><label>또는 동기화 코드 (다른 기기에서 발급된 것)</label>
-          <input type="text" id="ghSyncCode" placeholder="ledgerSync:..." autocomplete="off">
-        </div>
-        <div class="settings-actions">
-          <button class="btn btn-primary" id="btnSyncStart">☁️ 동기화 시작</button>
-        </div>
-      </div>
-
-      <div id="syncStep2" style="display:none">
-        <div class="sync-info">
-          <div class="sync-info-row"><span>상태</span><b id="syncStatusText">연결됨</b></div>
-          <div class="sync-info-row"><span>마지막 동기화</span><b id="syncLastTime">방금 전</b></div>
-          <div class="sync-info-row"><span>Gist ID</span><b id="syncGistId" class="mono">-</b></div>
-        </div>
-        <div class="sync-code-box">
-          <label>동기화 코드 (다른 기기에 붙여넣어 사용)</label>
-          <div class="sync-code-row">
-            <input type="text" id="syncCodeOut" readonly>
-            <button class="btn btn-primary" id="btnCopyCode">복사</button>
-          </div>
-          <p class="sync-warn">⚠️ 이 코드에는 토큰이 포함되어 있습니다. 본인 기기에만 입력하세요.</p>
-        </div>
-        <div class="settings-actions">
-          <button class="btn btn-primary" id="btnSyncNow">↻ 지금 동기화</button>
-          <button class="btn btn-ghost" id="btnSyncStop">동기화 끄기</button>
-        </div>
-      </div>
+    <!-- 📱 모바일 클라우드 동기화 -->
+    <div class="mobile-sync-card">
+      <p class="title">📱 이 기기에 최신 데이터 동기화</p>
+      <p class="sub">PC에서 입력한 데이터를 이 기기에 즉시 반영합니다</p>
+      <button id="mobileSyncBtn" onclick="mobileSyncFromGist()">📱 클라우드 동기화</button>
+      <p class="hint">누를 때마다 최신 데이터를 불러옵니다</p>
     </div>
 
-    <div class="settings-card">
-      <h3>📥 수동 백업·복원 (JSON)</h3>
-      <p>자동 동기화 없이 수동으로 백업/복원할 때 사용. 파일명: <b>유앤김_가계부_데이터.json</b></p>
+    <!-- GitHub 토큰 설정 -->
+    <div id="syncStep1">
+      <ol class="sync-steps">
+        <li><b>GitHub Token 발급:</b> <a href="https://github.com/settings/tokens/new?scopes=gist&description=Yukim+Ledger+Sync" target="_blank" rel="noopener" class="link">GitHub Token 발급 페이지 열기</a> → 만료일 "No expiration" → <b>"Generate token"</b> → 발급된 토큰 복사 (<b>ghp_</b>로 시작)</li>
+        <li>아래에 토큰 붙여넣기 후 "동기화 시작" 클릭 → 자동으로 비공개 Gist 생성 + 동기화 시작</li>
+        <li>다른 기기에서는 발급된 <b>동기화 코드</b>를 붙여넣기만 하면 즉시 같은 데이터 사용</li>
+      </ol>
+      <div class="field"><label>GitHub Personal Access Token</label>
+        <input type="password" id="ghToken" placeholder="ghp_..." autocomplete="off">
+      </div>
+      <div class="field"><label>또는 동기화 코드 (다른 기기에서 발급된 것)</label>
+        <input type="text" id="ghSyncCode" placeholder="ledgerSync:..." autocomplete="off">
+      </div>
       <div class="settings-actions">
-        <button class="btn btn-primary" id="btnExport">📥 데이터 내보내기 (JSON)</button>
-        <button class="btn btn-primary" id="btnImport">📤 데이터 가져오기 (JSON)</button>
-        <input type="file" id="fileImport" accept=".json,application/json">
+        <button class="btn btn-primary" id="btnSyncStart">☁️ 동기화 시작</button>
       </div>
     </div>
 
-    <div class="settings-card" style="border:2px solid #C9A961;background:#FFFDF7">
-      <h3 style="color:#9A7A30">⚡ 최신 데이터 강제 복원</h3>
-      <p>PC·모바일 데이터 불일치 시 사용하세요.<br>localStorage를 초기화하고 <b>최신 데이터(1051건, 1~6월)</b>로 즉시 복원합니다.</p>
-      <div class="settings-actions">
-        <button class="btn btn-primary" onclick="resetToLatest()" style="background:#C9A961;border-color:#A8893D">⚡ 최신 데이터(1051건)로 지금 복원</button>
+    <div id="syncStep2" style="display:none">
+      <div class="sync-info">
+        <div class="sync-info-row"><span>상태</span><b id="syncStatusText">연결됨</b></div>
+        <div class="sync-info-row"><span>마지막 동기화</span><b id="syncLastTime">방금 전</b></div>
+        <div class="sync-info-row"><span>Gist ID</span><b id="syncGistId" class="mono">-</b></div>
       </div>
-    </div>
-    <div class="settings-card">
-      <h3>🗂 데이터 초기화</h3>
-      <p>모든 수정 내용을 되돌리고 초기 가계부 데이터(1051건)로 복원합니다.</p>
-      <div class="settings-actions">
-        <button class="btn btn-danger" id="btnReset">⟳ 초기 데이터로 복원</button>
+      <div class="sync-code-box">
+        <label>동기화 코드 (다른 기기에 붙여넣어 사용)</label>
+        <div class="sync-code-row">
+          <input type="text" id="syncCodeOut" readonly>
+          <button class="btn btn-primary" id="btnCopyCode">복사</button>
+        </div>
+        <p class="sync-warn">⚠️ 이 코드에는 토큰이 포함되어 있습니다. 본인 기기에만 입력하세요.</p>
       </div>
-    </div>
-
-    <div class="settings-card">
-      <h3>📱 모바일 사용 안내</h3>
-      <p>이 앱은 PC와 모바일(iOS·Android) 브라우저 모두에서 작동합니다. 모바일에서는 브라우저 메뉴의 <b>"홈 화면에 추가"</b>를 누르면 앱처럼 사용할 수 있습니다.</p>
+      <div class="settings-actions">
+        <button class="btn btn-primary" id="btnSyncNow">↻ 지금 동기화</button>
+        <button class="btn btn-ghost" id="btnSyncStop">동기화 끄기</button>
+      </div>
     </div>
   </div>
+
+  <!-- JSON 백업 -->
+  <div class="settings-card">
+    <h3>📥 수동 백업·복원 (JSON)</h3>
+    <p>자동 동기화 없이 수동으로 백업/복원할 때 사용. 파일명: <b>유앤김_가계부_데이터.json</b></p>
+    <div class="settings-actions">
+      <button class="btn btn-primary" id="btnExport">📥 데이터 내보내기 (JSON)</button>
+      <button class="btn btn-primary" id="btnImport">📤 데이터 가져오기 (JSON)</button>
+      <input type="file" id="fileImport" accept=".json,application/json">
+    </div>
+  </div>
+
+  <!-- 강제 복원 -->
+  <div class="settings-card" style="border:2px solid var(--gold);background:var(--gold-pale)">
+    <h3 style="color:var(--gold-deep)">⚡ 최신 데이터 강제 복원</h3>
+    <p>PC·모바일 데이터 불일치 시 사용하세요.<br>localStorage를 초기화하고 <b>최신 데이터(1051건, 1~6월)</b>로 즉시 복원합니다.</p>
+    <div class="settings-actions">
+      <button class="btn btn-primary" onclick="resetToLatest()" style="background:var(--gold);border-color:var(--gold-deep);color:var(--navy-deep)">⚡ 최신 데이터(1051건)로 지금 복원</button>
+    </div>
+  </div>
+
+  <!-- 초기화 -->
+  <div class="settings-card">
+    <h3>🗂 데이터 초기화</h3>
+    <p>모든 수정 내용을 되돌리고 초기 가계부 데이터(1051건)로 복원합니다.</p>
+    <div class="settings-actions">
+      <button class="btn btn-danger" id="btnReset">⟳ 초기 데이터로 복원</button>
+    </div>
+  </div>
+
+  <!-- 모바일 안내 -->
+  <div class="settings-card">
+    <h3>📱 모바일 사용 안내</h3>
+    <p>이 앱은 PC와 모바일(iOS·Android) 브라우저 모두에서 작동합니다. 모바일에서는 브라우저 메뉴의 <b>"홈 화면에 추가"</b>를 누르면 앱처럼 사용할 수 있습니다.</p>
+  </div>
+</div>
 </section>
 
 </main>
@@ -717,45 +1127,45 @@ input[type="file"]{display:none}
 
 <!-- ===== MODAL ===== -->
 <div class="modal-bg" id="modalBg">
-  <div class="modal" role="dialog" aria-modal="true">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title" id="modalTitle">새 거래 추가</div>
-        <div class="modal-sub" id="modalSub"></div>
-      </div>
-      <button class="modal-close" id="modalClose" aria-label="닫기">×</button>
+<div class="modal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="modalTitle">새 거래 추가</div>
+      <div class="modal-sub" id="modalSub"></div>
     </div>
-    <div class="modal-body">
-      <div class="type-picker">
-        <button class="type-btn inc" data-type="수입">＋ 수입</button>
-        <button class="type-btn exp active" data-type="지출">－ 지출</button>
-        <button class="type-btn trf" data-type="이체">⇄ 이체</button>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>날짜</label><input type="date" id="fDate"></div>
-        <div class="field"><label>금액</label><input type="text" id="fAmount" inputmode="numeric" placeholder="0"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>구성원</label><select id="fUser"></select></div>
-        <div class="field"><label>카테고리</label><select id="fCat"></select></div>
-      </div>
-      <div class="field"><label>결제수단</label><select id="fMethod"></select></div>
-      <div class="field"><label>설명</label><input type="text" id="fDesc" placeholder="예: 농협하나로마트"></div>
-      <div class="field"><label>메모 (선택)</label><textarea id="fMemo" placeholder="추가 설명…"></textarea></div>
+    <button class="modal-close" id="modalClose" aria-label="닫기">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="type-picker">
+      <button class="type-btn inc" data-type="수입">＋ 수입</button>
+      <button class="type-btn exp active" data-type="지출">－ 지출</button>
+      <button class="type-btn trf" data-type="이체">⇄ 이체</button>
     </div>
-    <div class="modal-foot">
-      <div class="modal-foot-left"><button class="btn btn-danger" id="btnDelete" style="display:none">삭제</button></div>
-      <div class="modal-foot-right">
-        <button class="btn btn-ghost" id="modalCancel">취소</button>
-        <button class="btn btn-primary" id="modalSave">저장</button>
-      </div>
+    <div class="field-row">
+      <div class="field"><label>날짜</label><input type="date" id="fDate"></div>
+      <div class="field"><label>금액</label><input type="text" id="fAmount" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>구성원</label><select id="fUser"></select></div>
+      <div class="field"><label>카테고리</label><select id="fCat"></select></div>
+    </div>
+    <div class="field"><label>결제수단</label><select id="fMethod"></select></div>
+    <div class="field"><label>설명</label><input type="text" id="fDesc" placeholder="예: 농협하나로마트"></div>
+    <div class="field"><label>메모 (선택)</label><textarea id="fMemo" placeholder="추가 설명…"></textarea></div>
+  </div>
+  <div class="modal-foot">
+    <div class="modal-foot-left"><button class="btn btn-danger" id="btnDelete" style="display:none">삭제</button></div>
+    <div class="modal-foot-right">
+      <button class="btn btn-ghost" id="modalCancel">취소</button>
+      <button class="btn btn-primary" id="modalSave">저장</button>
     </div>
   </div>
+</div>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=1782961319"></script>
-<script src="app.js?v=1782961319"></script>
+<script src="data.js?v=2026070901"></script>
+<script src="app.js?v=2026070901"></script>
 </body>
 </html>
