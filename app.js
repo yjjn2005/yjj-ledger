@@ -75,9 +75,7 @@ function saveData(silent, opts){
     toast('저장 실패: 공간 부족', 'err');
   }
   if(!opts.fromRemote){
-    // ★ 항상 자동 push (token 설정 불필요)
-    scheduleAutoPush();
-    // 기존 개인 Gist 동기화도 유지
+    // 개인 Gist 동기화 (토큰 설정 시)
     const cfg = getSyncConfig();
     if(cfg.enabled && cfg.token && cfg.gistId) schedulePush();
   }
@@ -777,10 +775,8 @@ function startPullLoop(){clearInterval(pullTimer); pullTimer = setInterval(()=>d
 function stopPullLoop(){clearInterval(pullTimer); pullTimer = null}
 
 window.addEventListener('focus', ()=>{
-  // ★ 포커스 복귀 시 자동 pull
-  doAutoPull(true);
   const cfg = getSyncConfig();
-  if(cfg.enabled) doPull(true);
+  if(cfg.enabled && cfg.token && cfg.gistId) doPull(true);
 });
 window.addEventListener('beforeunload', ()=>{
   if(pushTimer){
@@ -885,7 +881,7 @@ window.addEventListener('storage', function(e){
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState!=='visible') return;
   // ★ 앱 전환 후 복귀 시 즉시 최신 데이터 pull
-  setTimeout(()=>doAutoPull(false), 200);
+  setTimeout(()=>{ var cfg=getSyncConfig(); if(cfg.enabled && cfg.token) doPull(true); else doAutoPull(false); }, 200);
   try{
     var raw = localStorage.getItem(STORAGE_KEY);
     if(raw){ var p = JSON.parse(raw); if(p && p.transactions && (p.updatedAt||'') > (DATA.updatedAt||'')){ DATA = p; rerenderAll(); } }
@@ -1606,45 +1602,39 @@ async function mobileSyncFromGist() {
   const btn = document.getElementById('mobileSyncBtn');
   const origText = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='동기화 중...'; }
-  try{
-    const resp = await fetch(AUTO_GIST_RAW + '?nocache=' + Date.now(), {
-      cache:'no-store',
-      headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
-    });
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    const remote = await resp.json();
-    if(!remote || !remote.transactions) throw new Error('데이터 없음');
-    DATA = remote;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
-    rerenderAll();
-    toast('✅ 동기화 완료 — ' + remote.transactions.length + '건', 'ok');
-    if(btn){ btn.textContent='✅ ' + remote.transactions.length + '건'; }
-    setTimeout(()=>{ if(btn){ btn.disabled=false; btn.textContent=origText; } }, 3000);
-  }catch(e){
-    toast('❌ 동기화 실패: ' + e.message, 'err');
-    if(btn){ btn.disabled=false; btn.textContent=origText; }
+  const cfg = getSyncConfig();
+  // 개인 Gist가 설정된 경우 개인 Gist에서 pull
+  if(cfg.enabled && cfg.token && cfg.gistId){
+    try{
+      await doPull(false);
+      if(btn){ btn.textContent='✅ ' + DATA.transactions.length + '건'; }
+      setTimeout(()=>{ if(btn){ btn.disabled=false; btn.textContent=origText; } }, 3000);
+    }catch(e){
+      toast('❌ 동기화 실패: ' + e.message, 'err');
+      if(btn){ btn.disabled=false; btn.textContent=origText; }
+    }
+    return;
   }
+  // 설정 없으면 설정 안내
+  if(btn){ btn.disabled=false; btn.textContent=origText; }
+  toast('⚙️ 설정 탭에서 GitHub 토큰으로 동기화를 먼저 설정하세요', 'err');
+  setTimeout(()=>{ try{ showView('settings'); }catch(_){} }, 800);
 }
 
-// autoSyncOnLoad → doAutoPull 로 통합
 async function autoSyncOnLoad(){
-  // 첫 접속(localStorage 없음)이면 무조건 Gist 데이터로 시작
+  const cfg = getSyncConfig();
+  // 개인 Gist 설정된 경우 우선 사용
+  if(cfg.enabled && cfg.token && cfg.gistId){
+    await doPull(true);
+    return;
+  }
+  // 첫 접속(localStorage 없음)이면 data.js INITIAL_DATA 사용 (AUTO_GIST 만료)
   const hasLocal = !!localStorage.getItem(STORAGE_KEY);
   if(!hasLocal){
-    try{
-      const resp = await fetch(AUTO_GIST_RAW + '?nocache=' + Date.now(), {
-        cache:'no-store', headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}
-      });
-      if(!resp.ok) return;
-      const remote = await resp.json();
-      if(!remote || !remote.transactions) return;
-      DATA = remote;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
-      rerenderAll();
-      toast('☁ 클라우드 데이터 로드 완료 — ' + remote.transactions.length + '건', 'ok');
-    }catch(e){ console.warn('[AutoSync 첫접속]', e.message); }
-  } else {
-    await doAutoPull(true);
+    DATA = deepClone(window.INITIAL_DATA);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+    rerenderAll();
+    toast('☁ 초기 데이터 로드 완료 — ' + DATA.transactions.length + '건', 'ok');
   }
 }
 
@@ -1672,8 +1662,6 @@ renderViewCardSpend();
 renderViewDividend();
 renderViewGolf();
 if(!getSyncConfig().enabled) flashSync('saved');
-// ★ 앱 시작 즉시 Gist에서 최신 데이터 pull
+// ★ 앱 시작 즉시 개인 Gist에서 최신 데이터 pull (토큰 설정 시)
 setTimeout(autoSyncOnLoad, 300);
-// ★ 30초마다 자동 pull (백그라운드 동기화)
-startAutoPull();
 
