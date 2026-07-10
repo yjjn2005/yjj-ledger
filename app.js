@@ -110,6 +110,7 @@ function showView(v){
   if(v==='cardspend') renderViewCardSpend();
   if(v==='dividend') renderViewDividend();
   if(v==='golf') renderViewGolf();
+  if(v==='budget') renderViewBudget();
 }
 document.querySelectorAll('.nav-tab').forEach(t=>t.addEventListener('click', ()=>showView(t.dataset.view)));
 document.getElementById('settingsBtn').addEventListener('click', ()=>showView('settings'));
@@ -224,6 +225,8 @@ function renderDash(){
       <div class="cat-amt">${fmtKRW(c.amount)}원<span class="cat-pct">(${totalPct}%)</span></div>
     </div>`;
   }).join('') || '<div class="empty">지출 데이터 없음</div>';
+
+  try{ renderDashInsights(); }catch(_){}
 }
 
 // ---------- 렌더: 월별 ----------
@@ -511,6 +514,7 @@ function rerenderAll(){
   renderViewCardSpend();
   renderViewDividend();
   renderViewGolf();
+  try{ budgetPopulateMonths(); renderViewBudget(); }catch(_){}
 }
 
 // ---------- 필터 이벤트 ----------
@@ -522,6 +526,12 @@ function bindFilters(){
   document.getElementById('catFilterMonth').addEventListener('change', renderCategory);
   document.getElementById('catFilterType').addEventListener('change', renderCategory);
   document.getElementById('memFilterMonth').addEventListener('change', renderMember);
+  var bfm = document.getElementById('budgetFilterMonth');
+  if(bfm) bfm.addEventListener('change', renderViewBudget);
+  var bsb = document.getElementById('btnSaveBudget');
+  if(bsb) bsb.addEventListener('click', saveBudgetFromUI);
+  var bab = document.getElementById('btnAutoBudget');
+  if(bab) bab.addEventListener('click', autoFillBudget);
 }
 
 // ---------- 백업/복원 ----------
@@ -1648,6 +1658,148 @@ function resetToLatest(){
   toast('✅ 최신 데이터(' + DATA.transactions.length + '건)로 복원 완료!', 'ok');
 }
 
+// ===== 예산·목표 관리 (신규) =====
+function defaultBudgets(){ return { savingsGoalPct: 20, byCategory: {} }; }
+function getBudgets(){ if(!DATA.budgets) DATA.budgets = defaultBudgets(); if(!DATA.budgets.byCategory) DATA.budgets.byCategory = {}; if(DATA.budgets.savingsGoalPct==null) DATA.budgets.savingsGoalPct = 20; return DATA.budgets; }
+function setBudgets(b){ DATA.budgets = b; saveData(true); }
+
+function budgetCategories(){
+  var totals = {};
+  DATA.transactions.forEach(function(t){
+    if(t.type==='지출'){ var c = t.cat || '기타'; totals[c] = (totals[c]||0) + t.amount; }
+  });
+  return Object.keys(totals).sort(function(a,b){ return totals[b]-totals[a]; });
+}
+
+function budgetPopulateMonths(){
+  var sel = document.getElementById('budgetFilterMonth'); if(!sel) return;
+  var months = [...new Set(DATA.transactions.map(t=>getMonth(t.date)))].filter(Boolean).sort();
+  var cur = sel.value;
+  sel.innerHTML = months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  sel.value = months.includes(cur) ? cur : (months[months.length-1] || '');
+}
+
+function renderViewBudget(){
+  var listEl = document.getElementById('budgetList'); if(!listEl) return;
+  var monthSel = document.getElementById('budgetFilterMonth');
+  if(!monthSel.value) budgetPopulateMonths();
+  var month = monthSel.value;
+  if(!month) { listEl.innerHTML = '<div class="empty">거래 데이터가 없습니다</div>'; return; }
+
+  var budgets = getBudgets();
+  var {sum} = aggregate({month});
+  var actualRate = sum.inc > 0 ? ((sum.inc - sum.exp) / sum.inc * 100) : 0;
+  var goal = budgets.savingsGoalPct || 0;
+
+  var rateEl = document.getElementById('budgetActualRate');
+  rateEl.textContent = actualRate.toFixed(1) + '%';
+  rateEl.className = 'sv-value' + (actualRate < goal ? ' warn' : '');
+  document.getElementById('budgetSavingsGoal').value = goal;
+  document.getElementById('budgetIncExp').innerHTML =
+    '<span style="color:var(--inc)">+' + fmtKRW(sum.inc) + '원</span> / <span style="color:#f6c96b">-' + fmtKRW(sum.exp) + '원</span>';
+
+  var catAmt = {};
+  categoryAgg({month, type:'지출'}).forEach(c => catAmt[c.cat] = c.amount);
+  var allCats = budgetCategories();
+  var totalBudget = 0, totalSpent = 0;
+
+  var rows = allCats.map(function(cat){
+    var budget = budgets.byCategory[cat] || 0;
+    var spent = catAmt[cat] || 0;
+    totalBudget += budget; totalSpent += spent;
+    var pct = budget > 0 ? (spent / budget * 100) : (spent > 0 ? 100 : 0);
+    var tag = budget === 0 ? '' : (pct < 80 ? 'ok' : (pct <= 100 ? 'warn' : 'over'));
+    var barPct = Math.min(100, pct);
+    return `<div class="budget-row">
+      <div class="budget-name">${escape(cat)}</div>
+      <div class="budget-track"><div class="budget-fill ${tag||'ok'}" style="width:${barPct}%"></div></div>
+      ${tag ? `<div class="budget-pct-tag ${tag}">${Math.round(pct)}%</div>` : '<div class="budget-pct-tag"></div>'}
+      <div class="budget-amt"><b>${fmtKRW(spent)}원</b> / ${budget?fmtKRW(budget)+'원':'미설정'}</div>
+      <input type="number" class="budget-input" data-cat="${escape(cat)}" value="${budget||''}" placeholder="0" min="0" step="10000">
+    </div>`;
+  }).join('');
+
+  var summaryPct = totalBudget > 0 ? Math.min(100, totalSpent/totalBudget*100) : 0;
+  var summary = `<div class="budget-row" style="border-bottom:2px solid var(--border);margin-bottom:6px;padding-bottom:14px">
+      <div class="budget-name" style="font-weight:800">전체 합계</div>
+      <div class="budget-track"><div class="budget-fill ${summaryPct<=100?'ok':'over'}" style="width:${Math.min(100,summaryPct)}%"></div></div>
+      <div class="budget-pct-tag ${summaryPct<=80?'ok':summaryPct<=100?'warn':'over'}">${totalBudget?Math.round(summaryPct)+'%':''}</div>
+      <div class="budget-amt"><b>${fmtKRW(totalSpent)}원</b> / ${totalBudget?fmtKRW(totalBudget)+'원':'미설정'}</div>
+      <div style="width:96px"></div>
+    </div>`;
+
+  listEl.innerHTML = summary + rows;
+}
+
+function saveBudgetFromUI(){
+  var budgets = getBudgets();
+  var newByCat = {};
+  document.querySelectorAll('.budget-input').forEach(function(inp){
+    var v = Number(inp.value) || 0;
+    if(v > 0) newByCat[inp.dataset.cat] = v;
+  });
+  budgets.byCategory = newByCat;
+  budgets.savingsGoalPct = Number(document.getElementById('budgetSavingsGoal').value) || 0;
+  setBudgets(budgets);
+  renderViewBudget();
+  toast('예산이 저장되었습니다', 'ok');
+}
+
+function autoFillBudget(){
+  var month = document.getElementById('budgetFilterMonth').value;
+  var months = [...new Set(DATA.transactions.map(t=>getMonth(t.date)))].filter(Boolean).sort();
+  var idx = months.indexOf(month);
+  var prior = idx > 0 ? months.slice(Math.max(0, idx-3), idx) : months.slice(-4, -1);
+  if(!prior.length) prior = months.slice(-3);
+  if(!prior.length){ toast('참고할 이전 달 데이터가 없습니다', 'err'); return; }
+  var sums = {};
+  prior.forEach(function(m){
+    categoryAgg({month:m, type:'지출'}).forEach(function(c){ sums[c.cat] = (sums[c.cat]||0) + c.amount; });
+  });
+  var budgets = getBudgets();
+  var n = prior.length;
+  Object.keys(sums).forEach(function(cat){
+    budgets.byCategory[cat] = Math.round(sums[cat] / n / 1000) * 1000;
+  });
+  setBudgets(budgets);
+  renderViewBudget();
+  toast('최근 ' + n + '개월(' + prior.join(', ') + ') 평균으로 예산을 채웠습니다', 'ok');
+}
+
+// ===== 대시보드 인사이트: 이상 지출 탐지 =====
+function renderDashInsights(){
+  var el = document.getElementById('dashInsights'); if(!el) return;
+  var months = monthlyAgg().map(m=>m.month).sort();
+  if(months.length < 2){ el.innerHTML = '<div class="empty">데이터가 더 쌓이면 표시됩니다</div>'; return; }
+  var current = months[months.length-1];
+  var priorMonths = months.slice(Math.max(0, months.length-4), months.length-1);
+  if(!priorMonths.length){ el.innerHTML = '<div class="empty">비교할 이전 달 데이터가 없습니다</div>'; return; }
+  var n = priorMonths.length;
+  var curCats = {};
+  categoryAgg({month:current, type:'지출'}).forEach(c => curCats[c.cat] = c.amount);
+  var priorSums = {};
+  priorMonths.forEach(function(m){
+    categoryAgg({month:m, type:'지출'}).forEach(function(c){ priorSums[c.cat] = (priorSums[c.cat]||0) + c.amount; });
+  });
+  var rows = [];
+  Object.keys(curCats).forEach(function(cat){
+    var avg = (priorSums[cat]||0) / n;
+    var cur = curCats[cat];
+    if(avg >= 10000 && cur >= avg * 1.5){
+      rows.push({cat: cat, cur: cur, avg: avg, pct: (cur/avg - 1) * 100});
+    }
+  });
+  rows.sort(function(a,b){ return b.pct - a.pct; });
+  rows = rows.slice(0, 5);
+  if(!rows.length){ el.innerHTML = '<div class="empty">평소보다 크게 늘어난 지출 카테고리가 없습니다 👍</div>'; return; }
+  el.innerHTML = rows.map(function(r){
+    return `<div class="insight-card up">
+      <div class="ins-cat">${escape(r.cat)}<div class="ins-detail">${current} ${fmtKRW(r.cur)}원 · 최근 ${n}개월 평균 ${fmtKRW(r.avg)}원</div></div>
+      <div class="ins-pct">+${r.pct.toFixed(0)}%</div>
+    </div>`;
+  }).join('');
+}
+
 // ---------- 초기 부트 ----------
 buildSelectOptions();
 bindFilters();
@@ -1661,6 +1813,7 @@ renderViewBalances();
 renderViewCardSpend();
 renderViewDividend();
 renderViewGolf();
+try{ budgetPopulateMonths(); renderViewBudget(); }catch(_){}
 if(!getSyncConfig().enabled) flashSync('saved');
 // ★ 앱 시작 즉시 개인 Gist에서 최신 데이터 pull (토큰 설정 시)
 setTimeout(autoSyncOnLoad, 300);
