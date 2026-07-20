@@ -1,4 +1,4 @@
-/* BUILD:1782960137 - 동기화 완전 수정 */
+﻿/* BUILD:1784960000 - 버그수정·간소화 */
 /* 유앤김 패밀리 가계부 — 앱 로직
    - localStorage 자동 저장
    - 거래 추가/수정/삭제 모달
@@ -168,9 +168,10 @@ function memberAgg(month){
   DATA.meta.users.forEach(u=>m[u] = {inc:0,exp:0,trf:0,cnt:0});
   DATA.transactions.forEach(t=>{
     if(month && month!=='all' && getMonth(t.date)!==month) return;
-    if(!m[t.user]) m[t.user] = {inc:0,exp:0,trf:0,cnt:0};
-    m[t.user][typeKey(t.type)] += t.amount;
-    m[t.user].cnt += 1;
+    const u = t.user || '(미상)';
+    if(!m[u]) m[u] = {inc:0,exp:0,trf:0,cnt:0};
+    m[u][typeKey(t.type)] += t.amount;
+    m[u].cnt += 1;
   });
   return m;
 }
@@ -359,9 +360,6 @@ function filterTx(){
   txPage = 1;
   renderTxList();
 }
-['txFilterMonth','txFilterType','txFilterUser','txFilterCat'].forEach(id=>{
-  document.addEventListener('DOMContentLoaded', ()=>{});
-});
 
 // ---------- 렌더: 카테고리 ----------
 function renderCategory(){
@@ -564,13 +562,6 @@ document.getElementById('fileImport').addEventListener('change', e=>{
   };
   reader.readAsText(file, 'utf-8');
   e.target.value = '';
-});
-document.getElementById('btnReset').addEventListener('click', ()=>{
-  if(!confirm('초기 데이터로 복원합니다. 계속할까요?')) return;
-  DATA = deepClone(window.INITIAL_DATA);
-  saveData(true);
-  rerenderAll();
-  toast('초기 데이터로 복원되었습니다', 'ok');
 });
 
 // ============ GitHub Gist 자동 동기화 ============
@@ -1817,4 +1808,5 @@ try{ budgetPopulateMonths(); renderViewBudget(); }catch(_){}
 if(!getSyncConfig().enabled) flashSync('saved');
 // ★ 앱 시작 즉시 개인 Gist에서 최신 데이터 pull (토큰 설정 시)
 setTimeout(autoSyncOnLoad, 300);
+
 
