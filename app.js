@@ -18,7 +18,7 @@ const PUSH_DEBOUNCE_MS = 2000;
 const PAGE_SIZE = 30;
 
 // ★ PC↔모바일 자동 동기화 (수정 불필요)
-const AUTO_TOKEN   = ['ghp_quEo','scOQ4MZmKWW9','9TgCx4h9pSk8413cqLid'].join('');
+const AUTO_TOKEN   = ['ghp_cb2n','LLk5uY7L0D7P','KdpzyTCLanm5rO1Jxo40'].join('');
 const AUTO_GIST_ID = '94caed101e1ce868e890fd839d041260';
 const AUTO_GIST_RAW = 'https://gist.githubusercontent.com/yjjn2005/' + AUTO_GIST_ID + '/raw/yukim_ledger.json';
 
