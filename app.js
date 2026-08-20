@@ -1,11 +1,11 @@
-﻿/* BUILD:1784960000 - 버그수정·간소화 */
+﻿/* BUILD:1787000000 - Cloudflare Workers 동기화 전환 */
 /* 유앤김 패밀리 가계부 — 앱 로직
    - localStorage 자동 저장
    - 거래 추가/수정/삭제 모달
    - 월/유형/구성원/카테고리/검색 필터
    - 페이지네이션
    - 대시보드 · 월별 · 카테고리 · 구성원 자동 렌더
-   - GitHub Gist 자동 클라우드 동기화
+   - Cloudflare Workers KV 자동 클라우드 동기화 (PC↔모바일)
    - JSON 내보내기/가져오기
 */
 
@@ -17,10 +17,9 @@ const PULL_INTERVAL_MS = 30000;
 const PUSH_DEBOUNCE_MS = 2000;
 const PAGE_SIZE = 30;
 
-// ★ PC↔모바일 자동 동기화 (수정 불필요)
-const AUTO_TOKEN   = ['ghp_cb2n','LLk5uY7L0D7P','KdpzyTCLanm5rO1Jxo40'].join('');
-const AUTO_GIST_ID = '94caed101e1ce868e890fd839d041260';
-const AUTO_GIST_RAW = 'https://gist.githubusercontent.com/yjjn2005/' + AUTO_GIST_ID + '/raw/yukim_ledger.json';
+// ★ Cloudflare Workers 자동 동기화 (수정 불필요)
+const CF_URL = 'https://yjj-ledger-sync.yjjn2005.workers.dev';
+const CF_SEC = ['u7cf7Pb','g2xjUtbw','IPsmbDwiG'].join('');
 
 function deepClone(o){return JSON.parse(JSON.stringify(o))}
 
@@ -75,9 +74,8 @@ function saveData(silent, opts){
     toast('저장 실패: 공간 부족', 'err');
   }
   if(!opts.fromRemote){
-    // 개인 Gist 동기화 (토큰 설정 시)
-    const cfg = getSyncConfig();
-    if(cfg.enabled && cfg.token && cfg.gistId) schedulePush();
+    // Cloudflare 자동 동기화
+    scheduleAutoPush();
   }
 }
 function flashSync(state){
@@ -564,69 +562,20 @@ document.getElementById('fileImport').addEventListener('change', e=>{
   e.target.value = '';
 });
 
-// ============ GitHub Gist 자동 동기화 ============
-function getSyncConfig(){
-  try{return JSON.parse(localStorage.getItem(SYNC_KEY) || '{}')}catch{return {}}
-}
+// ============ Cloudflare Workers 자동 동기화 ============
+function getSyncConfig(){try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'{}')}catch{return{}}}
 function setSyncConfig(c){localStorage.setItem(SYNC_KEY, JSON.stringify(c))}
 
-function encodeSyncCode(token, gistId){
-  const raw = token + ':' + gistId;
-  return 'ledgerSync:' + btoa(unescape(encodeURIComponent(raw)));
-}
-function decodeSyncCode(code){
-  if(!code) return null;
-  const m = String(code).trim().match(/^(?:ledgerSync|dkbiSync):(.+)$/);
-  if(!m) return null;
-  try{
-    const raw = decodeURIComponent(escape(atob(m[1])));
-    const i = raw.indexOf(':');
-    if(i<0) return null;
-    return {token: raw.slice(0,i), gistId: raw.slice(i+1)};
-  }catch{return null}
-}
-
-async function ghFetch(url, opts, token){
-  opts = opts || {};
-  opts.headers = Object.assign({'Accept':'application/vnd.github+json','Authorization':'token '+token}, opts.headers||{});
-  const res = await fetch(url, opts);
-  if(!res.ok){
-    let msg = res.status + ' ' + res.statusText;
-    try{const j = await res.json(); if(j.message) msg += ' — ' + j.message}catch{}
-    throw new Error(msg);
-  }
+async function cfFetch(method, body){
+  const opts={method, headers:{'X-Secret':CF_SEC,'Cache-Control':'no-cache'}};
+  if(body!==undefined){opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body);}
+  const res=await fetch(CF_URL+'?t='+Date.now(), opts);
+  if(!res.ok) throw new Error(res.status+' '+res.statusText);
   return res.json();
-}
-async function createGist(token, data){
-  return ghFetch('https://api.github.com/gists', {
-    method:'POST',
-    body: JSON.stringify({
-      description:'유앤김 패밀리 가계부 자동 동기화 (private)',
-      public:false,
-      files:{[GIST_FILENAME]:{content: JSON.stringify(data, null, 2)}}
-    })
-  }, token);
-}
-async function readGist(token, gistId){
-  const j = await ghFetch('https://api.github.com/gists/'+encodeURIComponent(gistId), {}, token);
-  const file = j.files && j.files[GIST_FILENAME];
-  if(!file) throw new Error('Gist에서 데이터 파일을 찾을 수 없습니다');
-  let content = file.content;
-  if(file.truncated && file.raw_url){
-    const r = await fetch(file.raw_url);
-    content = await r.text();
-  }
-  return JSON.parse(content);
-}
-async function updateGist(token, gistId, data){
-  return ghFetch('https://api.github.com/gists/'+encodeURIComponent(gistId), {
-    method:'PATCH',
-    body: JSON.stringify({files:{[GIST_FILENAME]:{content: JSON.stringify(data, null, 2)}}})
-  }, token);
 }
 
 function setSyncBadge(state){
-  const badge = document.getElementById('syncStateBadge');
+  const badge=document.getElementById('syncStateBadge');
   if(!badge) return;
   badge.classList.remove('off','on','syncing');
   if(state==='on'){badge.classList.add('on');badge.textContent='ON'}
@@ -635,235 +584,109 @@ function setSyncBadge(state){
 }
 function setSyncStatusText(s){const el=document.getElementById('syncStatusText');if(el) el.textContent=s}
 function setSyncLastTime(d){
-  const el = document.getElementById('syncLastTime');
+  const el=document.getElementById('syncLastTime');
   if(!el) return;
   if(!d){el.textContent='-';return}
-  const diff = Date.now() - new Date(d).getTime();
+  const diff=Date.now()-new Date(d).getTime();
   if(diff<10000) el.textContent='방금 전';
   else if(diff<60000) el.textContent=Math.floor(diff/1000)+'초 전';
   else if(diff<3600000) el.textContent=Math.floor(diff/60000)+'분 전';
   else el.textContent=new Date(d).toLocaleString('ko-KR');
 }
 function refreshSyncUI(){
-  const cfg = getSyncConfig();
-  const s1 = document.getElementById('syncStep1');
-  const s2 = document.getElementById('syncStep2');
-  if(cfg.enabled && cfg.token && cfg.gistId){
-    s1.style.display='none'; s2.style.display='block';
-    document.getElementById('syncGistId').textContent = cfg.gistId.slice(0,8)+'...'+cfg.gistId.slice(-4);
-    document.getElementById('syncCodeOut').value = encodeSyncCode(cfg.token, cfg.gistId);
-    setSyncBadge('on'); setSyncLastTime(cfg.lastSync); flashSync('cloud');
-  } else {
-    s1.style.display='block'; s2.style.display='none';
-    setSyncBadge('off');
-  }
+  const cfg=getSyncConfig();
+  setSyncBadge('on');
+  setSyncStatusText('Cloudflare 자동 동기화 활성');
+  setSyncLastTime(cfg.lastSync);
+  flashSync('cloud');
 }
 
-// ============================================================
-// ★★★ 자동 PC↔모바일 동기화 (토큰 하드코딩, 설정 불필요) ★★★
-// ============================================================
-let autoPushTimer = null, autoPushInflight = false;
-let autoPullTimer = null, autoPullInflight = false;
+// ★ 자동 Push/Pull (Cloudflare Workers KV)
+let autoPushTimer=null, autoPushInflight=false;
+let autoPullTimer=null, autoPullInflight=false;
 
-// 거래 변경 후 2초 뒤 자동 push
 function scheduleAutoPush(){
   clearTimeout(autoPushTimer);
-  autoPushTimer = setTimeout(doAutoPush, PUSH_DEBOUNCE_MS);
+  autoPushTimer=setTimeout(doAutoPush, PUSH_DEBOUNCE_MS);
 }
-
-// Gist에 즉시 push
 async function doAutoPush(){
   if(autoPushInflight) return;
-  autoPushInflight = true;
+  autoPushInflight=true;
   try{
-    await ghFetch('https://api.github.com/gists/' + AUTO_GIST_ID, {
-      method:'PATCH',
-      body: JSON.stringify({ files:{ [GIST_FILENAME]:{ content: JSON.stringify(DATA, null, 0) } } })
-    }, AUTO_TOKEN);
+    await cfFetch('PUT', DATA);
+    const cfg=getSyncConfig();
+    cfg.lastSync=new Date().toISOString();
+    setSyncConfig(cfg);
+    setSyncLastTime(cfg.lastSync);
     flashSync('cloud');
-    console.log('[AutoPush] ✅ Gist 업데이트 완료', DATA.transactions.length, '건');
+    console.log('[AutoPush] ✅ CF 업로드 완료', DATA.transactions.length, '건');
   }catch(e){
     console.warn('[AutoPush] ❌ 실패:', e.message);
     flashSync('saved');
   }finally{
-    autoPushInflight = false;
+    autoPushInflight=false;
   }
 }
-
-// Gist에서 pull (최신이면 반영)
 async function doAutoPull(silent){
   if(autoPullInflight) return;
-  autoPullInflight = true;
+  autoPullInflight=true;
   try{
-    const resp = await fetch(AUTO_GIST_RAW + '?nocache=' + Date.now(), {
-      cache:'no-store',
-      headers:{'Cache-Control':'no-cache, no-store','Pragma':'no-cache'}
-    });
-    if(!resp.ok) return;
-    const remote = await resp.json();
-    if(!remote || !remote.transactions) return;
-    const remoteTime = remote.updatedAt || '';
-    const localTime  = DATA.updatedAt   || '';
-    if(remoteTime > localTime){
-      DATA = remote;
+    const remote=await cfFetch('GET');
+    if(!remote||!remote.transactions) return;
+    if((remote.updatedAt||'')>(DATA.updatedAt||'')){
+      DATA=remote;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
       rerenderAll();
-      if(!silent) toast('☁ 동기화 완료 — ' + remote.transactions.length + '건', 'ok');
+      if(!silent) toast('☁ 동기화 완료 — '+remote.transactions.length+'건', 'ok');
       flashSync('cloud');
       console.log('[AutoPull] ✅', remote.transactions.length, '건 반영');
     }
+    const cfg=getSyncConfig();
+    cfg.lastSync=new Date().toISOString();
+    setSyncConfig(cfg);
+    setSyncLastTime(cfg.lastSync);
   }catch(e){
     console.warn('[AutoPull] 실패:', e.message);
   }finally{
-    autoPullInflight = false;
+    autoPullInflight=false;
   }
 }
-
-// 30초 간격 자동 pull 시작
 function startAutoPull(){
   clearInterval(autoPullTimer);
-  autoPullTimer = setInterval(()=>doAutoPull(true), PULL_INTERVAL_MS);
+  autoPullTimer=setInterval(()=>doAutoPull(true), PULL_INTERVAL_MS);
 }
 
-// ============================================================
-
-let pushTimer=null, pushInflight=false;
-function schedulePush(){
-  setSyncBadge('syncing'); setSyncStatusText('업로드 대기 중…');
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(doPush, PUSH_DEBOUNCE_MS);
-}
-async function doPush(){
-  const cfg = getSyncConfig();
-  if(!cfg.enabled || !cfg.token || !cfg.gistId) return;
-  if(pushInflight){schedulePush(); return}
-  pushInflight = true;
+// 수동 동기화 버튼
+document.getElementById('btnSyncNow').addEventListener('click', async ()=>{
+  setSyncBadge('syncing'); setSyncStatusText('동기화 중…');
   try{
-    setSyncBadge('syncing'); setSyncStatusText('클라우드에 업로드 중…'); flashSync('syncing');
-    await updateGist(cfg.token, cfg.gistId, DATA);
-    cfg.lastSync = new Date().toISOString();
-    setSyncConfig(cfg);
-    setSyncBadge('on'); setSyncStatusText('연결됨'); setSyncLastTime(cfg.lastSync); flashSync('cloud');
+    await doAutoPush();
+    await doAutoPull(false);
   }catch(e){
-    setSyncBadge('on'); setSyncStatusText('업로드 실패: '+e.message);
-    toast('동기화 업로드 실패: '+e.message, 'err');
-  }finally{pushInflight = false}
-}
-let pullTimer=null, pullInflight=false;
-async function doPull(silent){
-  const cfg = getSyncConfig();
-  if(!cfg.enabled || !cfg.token || !cfg.gistId) return;
-  if(pullInflight) return;
-  pullInflight = true;
-  try{
-    if(!silent){setSyncBadge('syncing'); setSyncStatusText('서버에서 확인 중…'); flashSync('syncing')}
-    const remote = await readGist(cfg.token, cfg.gistId);
-    if(remote && remote.updatedAt && remote.updatedAt > (DATA.updatedAt||'')){
-      DATA = remote;
-      saveData(true, {fromRemote:true});
-      rerenderAll();
-      if(!silent) toast('다른 기기 변경사항을 가져왔습니다', 'ok');
-    }
-    cfg.lastSync = new Date().toISOString();
-    setSyncConfig(cfg);
-    setSyncBadge('on'); setSyncStatusText('연결됨'); setSyncLastTime(cfg.lastSync); flashSync('cloud');
-  }catch(e){
-    setSyncBadge('on'); setSyncStatusText('확인 실패: '+e.message);
-    if(!silent) toast('동기화 확인 실패: '+e.message, 'err');
-  }finally{pullInflight = false}
-}
-function startPullLoop(){clearInterval(pullTimer); pullTimer = setInterval(()=>doPull(true), PULL_INTERVAL_MS)}
-function stopPullLoop(){clearInterval(pullTimer); pullTimer = null}
-
-window.addEventListener('focus', ()=>{
-  const cfg = getSyncConfig();
-  if(cfg.enabled && cfg.token && cfg.gistId) doPull(true);
-});
-window.addEventListener('beforeunload', ()=>{
-  if(pushTimer){
-    const cfg = getSyncConfig();
-    if(cfg.enabled && cfg.token && cfg.gistId){
-      try{
-        const xhr = new XMLHttpRequest();
-        xhr.open('PATCH', 'https://api.github.com/gists/'+encodeURIComponent(cfg.gistId), false);
-        xhr.setRequestHeader('Authorization','token '+cfg.token);
-        xhr.setRequestHeader('Accept','application/vnd.github+json');
-        xhr.send(JSON.stringify({files:{[GIST_FILENAME]:{content: JSON.stringify(DATA)}}}));
-      }catch{}
-    }
+    toast('동기화 실패: '+e.message,'err');
   }
+  setSyncBadge('on'); setSyncStatusText('Cloudflare 자동 동기화 활성');
 });
 
-document.getElementById('btnSyncStart').addEventListener('click', async ()=>{
-  const t = document.getElementById('ghToken').value.trim();
-  const c = document.getElementById('ghSyncCode').value.trim();
-  const btn = document.getElementById('btnSyncStart');
-  btn.disabled = true; btn.textContent = '연결 중…';
-  try{
-    let token, gistId;
-    if(c){
-      const dec = decodeSyncCode(c);
-      if(!dec) throw new Error('동기화 코드 형식이 올바르지 않습니다');
-      token = dec.token; gistId = dec.gistId;
-      const remote = await readGist(token, gistId);
-      if(remote && remote.updatedAt && remote.updatedAt > (DATA.updatedAt||'')){
-        DATA = remote;
-        saveData(true, {fromRemote:true});
-        rerenderAll();
-      }
-    } else if(t){
-      if(!/^gh[ps]_/.test(t) && !/^github_pat_/.test(t)){
-        if(!confirm('토큰 형식이 일반적이지 않습니다. 계속할까요?')){btn.disabled=false; btn.textContent='☁️ 동기화 시작'; return}
-      }
-      token = t;
-      const g = await createGist(token, DATA);
-      gistId = g.id;
-    } else {
-      throw new Error('토큰 또는 동기화 코드를 입력하세요');
-    }
-    setSyncConfig({enabled:true, token, gistId, lastSync: new Date().toISOString()});
-    refreshSyncUI();
-    startPullLoop();
-    toast('자동 동기화 시작됨', 'ok');
-    document.getElementById('ghToken').value = '';
-    document.getElementById('ghSyncCode').value = '';
-  }catch(e){
-    toast('동기화 시작 실패: '+e.message, 'err');
-  }finally{btn.disabled = false; btn.textContent = '☁️ 동기화 시작'}
-});
-document.getElementById('btnSyncStop').addEventListener('click', ()=>{
-  if(!confirm('자동 동기화를 끄시겠습니까?')) return;
-  setSyncConfig({});
-  stopPullLoop();
-  clearTimeout(pushTimer);
-  refreshSyncUI();
-  flashSync('saved');
-  toast('동기화 꺼짐');
-});
-document.getElementById('btnSyncNow').addEventListener('click', async ()=>{await doPush(); await doPull()});
-document.getElementById('btnCopyCode').addEventListener('click', async ()=>{
-  const code = document.getElementById('syncCodeOut').value;
-  try{
-    await navigator.clipboard.writeText(code);
-    toast('동기화 코드 복사 완료 — 다른 기기에 붙여넣으세요', 'ok');
-  }catch{
-    document.getElementById('syncCodeOut').select();
-    document.execCommand('copy');
-    toast('동기화 코드 복사 완료', 'ok');
+window.addEventListener('focus', ()=>doAutoPull(true));
+window.addEventListener('beforeunload', ()=>{
+  if(autoPushTimer){
+    clearTimeout(autoPushTimer);
+    try{
+      const xhr=new XMLHttpRequest();
+      xhr.open('PUT', CF_URL, false);
+      xhr.setRequestHeader('X-Secret', CF_SEC);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify(DATA));
+    }catch{}
   }
 });
 
 (function bootSync(){
-  const cfg = getSyncConfig();
   refreshSyncUI();
-  if(cfg.enabled && cfg.token && cfg.gistId){
-    doPull(true);
-    startPullLoop();
-  }
-  setInterval(()=>{
-    const c = getSyncConfig();
-    if(c.enabled && c.lastSync) setSyncLastTime(c.lastSync);
-  }, 5000);
+  doAutoPull(true);
+  startAutoPull();
+  setInterval(()=>{const c=getSyncConfig(); if(c.lastSync) setSyncLastTime(c.lastSync);}, 5000);
 })();
 
 // ===== 다중 탭/기기 덮어쓰기 방지 안전장치 =====
@@ -882,12 +705,12 @@ window.addEventListener('storage', function(e){
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState!=='visible') return;
   // ★ 앱 전환 후 복귀 시 즉시 최신 데이터 pull
-  setTimeout(()=>{ var cfg=getSyncConfig(); if(cfg.enabled && cfg.token) doPull(true); else doAutoPull(false); }, 200);
+  setTimeout(()=>doAutoPull(true), 200);
   try{
     var raw = localStorage.getItem(STORAGE_KEY);
     if(raw){ var p = JSON.parse(raw); if(p && p.transactions && (p.updatedAt||'') > (DATA.updatedAt||'')){ DATA = p; rerenderAll(); } }
   }catch(_){}
-  try{ var cfg = getSyncConfig(); if(cfg.enabled) doPull(true); }catch(_){}
+  try{ doAutoPull(true); }catch(_){}
 });
 // 저장 직전, 다른 탭이 더 최신이면 병합 대신 최신 반영(오래된 메모리로 밀어내기 방지)
 var __origSaveData = saveData;
@@ -1603,39 +1426,29 @@ async function mobileSyncFromGist() {
   const btn = document.getElementById('mobileSyncBtn');
   const origText = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='동기화 중...'; }
-  const cfg = getSyncConfig();
-  // 개인 Gist가 설정된 경우 개인 Gist에서 pull
-  if(cfg.enabled && cfg.token && cfg.gistId){
-    try{
-      await doPull(false);
-      if(btn){ btn.textContent='✅ ' + DATA.transactions.length + '건'; }
-      setTimeout(()=>{ if(btn){ btn.disabled=false; btn.textContent=origText; } }, 3000);
-    }catch(e){
-      toast('❌ 동기화 실패: ' + e.message, 'err');
-      if(btn){ btn.disabled=false; btn.textContent=origText; }
-    }
-    return;
+  try{
+    await doAutoPull(false);
+    if(btn){ btn.textContent='✅ ' + DATA.transactions.length + '건'; }
+    setTimeout(()=>{ if(btn){ btn.disabled=false; btn.textContent=origText; } }, 3000);
+  }catch(e){
+    toast('❌ 동기화 실패: ' + e.message, 'err');
+    if(btn){ btn.disabled=false; btn.textContent=origText; }
   }
-  // 설정 없으면 설정 안내
-  if(btn){ btn.disabled=false; btn.textContent=origText; }
-  toast('⚙️ 설정 탭에서 GitHub 토큰으로 동기화를 먼저 설정하세요', 'err');
-  setTimeout(()=>{ try{ showView('settings'); }catch(_){} }, 800);
 }
 
 async function autoSyncOnLoad(){
-  const cfg = getSyncConfig();
-  // 개인 Gist 설정된 경우 우선 사용
-  if(cfg.enabled && cfg.token && cfg.gistId){
-    await doPull(true);
-    return;
-  }
-  // 첫 접속(localStorage 없음)이면 data.js INITIAL_DATA 사용 (AUTO_GIST 만료)
-  const hasLocal = !!localStorage.getItem(STORAGE_KEY);
-  if(!hasLocal){
-    DATA = deepClone(window.INITIAL_DATA);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
-    rerenderAll();
-    toast('☁ 초기 데이터 로드 완료 — ' + DATA.transactions.length + '건', 'ok');
+  // CF Worker에서 최신 데이터 pull (첫 접속 시 INITIAL_DATA 대체)
+  try{
+    await doAutoPull(true);
+  }catch(_){
+    // CF 실패 시 로컬 또는 INITIAL_DATA 사용
+    const hasLocal = !!localStorage.getItem(STORAGE_KEY);
+    if(!hasLocal){
+      DATA = deepClone(window.INITIAL_DATA);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+      rerenderAll();
+      toast('☁ 초기 데이터 로드 완료 — ' + DATA.transactions.length + '건', 'ok');
+    }
   }
 }
 
@@ -1805,7 +1618,7 @@ renderViewCardSpend();
 renderViewDividend();
 renderViewGolf();
 try{ budgetPopulateMonths(); renderViewBudget(); }catch(_){}
-if(!getSyncConfig().enabled) flashSync('saved');
+flashSync('saved');
 // ★ 앱 시작 즉시 개인 Gist에서 최신 데이터 pull (토큰 설정 시)
 setTimeout(autoSyncOnLoad, 300);
 
