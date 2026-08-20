@@ -1097,56 +1097,28 @@ input[type="file"]{display:none}
 <div class="section">
   <div class="section-head"><div><h2 class="section-title">설정 · 동기화 · 백업</h2><div class="section-desc">기기 간 자동 연동과 백업·복원</div></div></div>
 
-  <!-- 자동 클라우드 동기화 -->
-  <div class="settings-card" id="cloudSyncCard">
-    <h3>☁️ 모든 기기 자동 연동 <span id="syncStateBadge" class="sync-badge off">OFF</span></h3>
-    <p>PC·모바일·태블릿 어디서나 같은 데이터를 사용합니다.<br>GitHub Gist(무료 · 비공개)에 자동 저장되며 <b>최초 1회만 설정</b>하면 됩니다.</p>
+  <!-- 자동 클라우드 동기화 (Cloudflare Workers) -->
+  <div class="settings-card" id="cloudSyncCard" style="border:2px solid #3b82f6;background:#eff6ff">
+    <h3 style="color:#1d4ed8">☁️ 모든 기기 자동 연동 <span id="syncStateBadge" class="sync-badge on">ON</span></h3>
+    <p>PC·모바일·태블릿 어디서나 자동으로 같은 데이터를 사용합니다.<br>
+    <b>별도 설정 없이</b> Cloudflare 서버에 실시간 동기화됩니다. (30초 간격 자동 pull · 수정 즉시 push)</p>
 
-    <!-- 📱 동기화 버튼 (이미 설정된 경우) -->
+    <!-- 📱 즉시 동기화 버튼 -->
     <div class="mobile-sync-card">
       <p class="title">📱 이 기기 데이터 즉시 동기화</p>
-      <p class="sub">동기화가 설정된 경우 — 누르면 최신 데이터를 가져옵니다</p>
+      <p class="sub">누르면 다른 기기의 최신 데이터를 즉시 가져옵니다</p>
       <button id="mobileSyncBtn" onclick="mobileSyncFromGist()">☁️ 지금 동기화</button>
-      <p class="hint">동기화 미설정 시 아래에서 먼저 설정하세요</p>
     </div>
 
-    <!-- 설정 전 (syncStep1) -->
-    <div id="syncStep1">
-      <ol class="sync-steps">
-        <li><b>GitHub 토큰 발급:</b> <a href="https://github.com/settings/tokens/new?scopes=gist&description=Yukim+Ledger+Sync" target="_blank" rel="noopener" class="link">토큰 발급 페이지 열기</a> → 만료일 <b>No expiration</b> → <b>Generate token</b> → 복사 (<b>ghp_</b>로 시작)</li>
-        <li>아래 입력칸에 토큰 붙여넣기 → <b>연동 시작</b> 클릭</li>
-        <li>완료 후 표시되는 <b>동기화 코드</b>를 다른 기기에 붙여넣으면 즉시 연동</li>
-      </ol>
-      <div class="field"><label>GitHub 토큰 (최초 기기)</label>
-        <input type="password" id="ghToken" placeholder="ghp_..." autocomplete="off">
-      </div>
-      <div class="field"><label>동기화 코드 (다른 기기 — 코드만 붙여넣기)</label>
-        <input type="text" id="ghSyncCode" placeholder="ledgerSync:..." autocomplete="off">
-      </div>
-      <div class="settings-actions">
-        <button class="btn btn-primary" id="btnSyncStart">☁️ 연동 시작</button>
-      </div>
+    <!-- 상태 표시 -->
+    <div class="sync-info">
+      <div class="sync-info-row"><span>상태</span><b id="syncStatusText">Cloudflare 자동 동기화 활성</b></div>
+      <div class="sync-info-row"><span>마지막 동기화</span><b id="syncLastTime">-</b></div>
+      <div class="sync-info-row"><span>서버</span><b style="font-size:.8em;word-break:break-all">Cloudflare Workers KV (무료 플랜)</b></div>
     </div>
 
-    <!-- 설정 후 (syncStep2) -->
-    <div id="syncStep2" style="display:none">
-      <div class="sync-info">
-        <div class="sync-info-row"><span>상태</span><b id="syncStatusText">연결됨</b></div>
-        <div class="sync-info-row"><span>마지막 동기화</span><b id="syncLastTime">방금 전</b></div>
-        <div class="sync-info-row"><span>Gist ID</span><b id="syncGistId" class="mono">-</b></div>
-      </div>
-      <div class="sync-code-box">
-        <label>동기화 코드 — 다른 기기에 붙여넣어 사용</label>
-        <div class="sync-code-row">
-          <input type="text" id="syncCodeOut" readonly>
-          <button class="btn btn-primary" id="btnCopyCode">복사</button>
-        </div>
-        <p class="sync-warn">⚠️ 이 코드는 본인 기기에만 입력하세요 (토큰 포함).</p>
-      </div>
-      <div class="settings-actions">
-        <button class="btn btn-primary" id="btnSyncNow">↻ 지금 동기화</button>
-        <button class="btn btn-ghost" id="btnSyncStop">연동 끄기</button>
-      </div>
+    <div class="settings-actions">
+      <button class="btn btn-primary" id="btnSyncNow">↻ 지금 동기화</button>
     </div>
   </div>
 
