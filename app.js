@@ -13,7 +13,7 @@ const STORAGE_KEY = 'yukim_ledger_v1';
 const SYNC_KEY = 'yukim_ledger_sync_v1';
 const FILE_NAME = '유앤김_가계부_데이터.json';
 const GIST_FILENAME = 'yukim_ledger.json';
-const PULL_INTERVAL_MS = 30000;
+const PULL_INTERVAL_MS = 60000;
 const PUSH_DEBOUNCE_MS = 2000;
 const PAGE_SIZE = 30;
 
@@ -640,6 +640,10 @@ async function doAutoPull(silent){
       if(!silent) toast('☁ 동기화 완료 — '+remote.transactions.length+'건', 'ok');
       flashSync('cloud');
       console.log('[AutoPull] ✅', remote.transactions.length, '건 반영');
+    } else if(!remote.transactions||!remote.transactions.length||(DATA.updatedAt||'')>(remote.updatedAt||'')){
+      // 로컬이 최신 또는 KV 비어있음 → 자동 push
+      scheduleAutoPush();
+      console.log('[AutoPull] 로컬이 최신 → push 예약');
     }
     const cfg=getSyncConfig();
     cfg.lastSync=new Date().toISOString();
