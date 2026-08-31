@@ -651,6 +651,7 @@ async function doAutoPull(silent){
     setSyncLastTime(cfg.lastSync);
   }catch(e){
     console.warn('[AutoPull] 실패:', e.message);
+    if(!silent) toast('☁ 동기화 실패: '+e.message,'err');
   }finally{
     autoPullInflight=false;
   }
@@ -660,12 +661,17 @@ function startAutoPull(){
   autoPullTimer=setInterval(()=>doAutoPull(true), PULL_INTERVAL_MS);
 }
 
-// 수동 동기화 버튼
+// 수동 동기화 버튼 — pull 우선(최신 데이터 가져오기 → 필요 시 push)
 document.getElementById('btnSyncNow').addEventListener('click', async ()=>{
   setSyncBadge('syncing'); setSyncStatusText('동기화 중…');
   try{
-    await doAutoPush();
+    // pull 먼저: CF가 최신이면 로컬 업데이트, 로컬이 최신이면 자동 push 예약
     await doAutoPull(false);
+    // pull 후 로컬이 최신인 경우를 대비해 명시적 push (scheduleAutoPush가 이미 예약됐을 수 있지만 즉시 실행)
+    if(!autoPushInflight && autoPushTimer) {
+      clearTimeout(autoPushTimer);
+      await doAutoPush();
+    }
   }catch(e){
     toast('동기화 실패: '+e.message,'err');
   }
@@ -688,7 +694,10 @@ window.addEventListener('beforeunload', ()=>{
 
 (function bootSync(){
   refreshSyncUI();
-  doAutoPull(true);
+  // 앱 시작 시 CF pull — 실패 시 3초 후 1회 재시도
+  doAutoPull(true).catch(()=>{
+    setTimeout(()=>doAutoPull(true), 3000);
+  });
   startAutoPull();
   setInterval(()=>{const c=getSyncConfig(); if(c.lastSync) setSyncLastTime(c.lastSync);}, 5000);
 })();
