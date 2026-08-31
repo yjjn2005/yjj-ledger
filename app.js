@@ -1463,7 +1463,8 @@ function resetToLatest(){
   DATA = deepClone(window.INITIAL_DATA);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
   rerenderAll();
-  toast('✅ 최신 데이터(' + DATA.transactions.length + '건)로 복원 완료!', 'ok');
+  scheduleAutoPush();
+  toast('✅ 최신 데이터(' + DATA.transactions.length + '건)로 복원 완료! ☁ 동기화 중…', 'ok');
 }
 
 // ===== 예산·목표 관리 (신규) =====
